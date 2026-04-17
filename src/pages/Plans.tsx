@@ -271,9 +271,10 @@ export default function Plans() {
 }
 
 function PlanCard({
-  row, onStatus, onDelete, busy,
+  row, livePrice, onStatus, onDelete, busy,
 }: {
   row: SavedPlanRow;
+  livePrice: number | null;
   onStatus: (id: string, s: SavedPlanRow["status"]) => void;
   onDelete: (id: string) => void;
   busy: boolean;
