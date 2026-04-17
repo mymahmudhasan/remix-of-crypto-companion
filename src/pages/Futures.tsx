@@ -1,25 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown } from "lucide-react";
+import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
-import { snapshot, scoreSignal } from "@/lib/indicators";
+import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSignal } from "@/lib/indicators";
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
+import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
 import { cn } from "@/lib/utils";
 
-interface FuturesPlan {
+interface FuturesPlan extends PlanCommon {
   side: "long" | "short" | "neutral";
-  conviction: number;
   leverage: number;
-  entry: { low: number; high: number };
-  stop: number;
-  targets: number[];
-  riskPct: number;
-  rationale: string[];
-  invalidations: string[];
+  fundingNote: string;
 }
 
 const TOP_SYMBOLS = SCANNER_UNIVERSE.slice(0, 30);
 const LEVERAGES = [3, 5, 10, 20, 50];
+const MTF_INTERVALS = ["15m", "1h", "4h", "1d"];
+
+interface TFSnap {
+  interval: string;
+  snapshot: IndicatorSnapshot;
+  signal: ScoredSignal;
+}
 
 export default function Futures() {
   const [params] = useSearchParams();
@@ -37,19 +39,35 @@ export default function Futures() {
   const [plan, setPlan] = useState<FuturesPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [closes, setCloses] = useState<number[]>([]);
+  const [snap, setSnap] = useState<IndicatorSnapshot | null>(null);
+  const [mtfSnaps, setMtfSnaps] = useState<TFSnap[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    setPlan(null); setError(null);
-    fetchKlines(symbol, interval, 300).then((k) => {
-      if (cancelled) return;
-      setCloses(k.map((x) => x.close));
-    }).catch((e) => !cancelled && setError(e.message));
+    setPlan(null); setError(null); setSnap(null); setMtfSnaps([]);
+
+    const load = async () => {
+      try {
+        const primaryP = fetchKlines(symbol, interval, 300);
+        const extras = MTF_INTERVALS.filter((i) => i !== interval).slice(0, 3);
+        const extraPs = extras.map((iv) => fetchKlines(symbol, iv, 250));
+        const [primaryK, ...extraKs] = await Promise.all([primaryP, ...extraPs]);
+        if (cancelled) return;
+        const ps = snapshotFromCandles(primaryK);
+        setSnap(ps);
+        const tf = extraKs.map((k, i) => {
+          const s = snapshotFromCandles(k);
+          return { interval: extras[i], snapshot: s, signal: scoreSignal(s) };
+        });
+        setMtfSnaps(tf);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message);
+      }
+    };
+    load();
     return () => { cancelled = true; };
   }, [symbol, interval]);
 
-  const snap = useMemo(() => closes.length >= 50 ? snapshot(closes) : null, [closes]);
   const sig = useMemo(() => snap ? scoreSignal(snap) : null, [snap]);
 
   const generatePlan = async () => {
@@ -63,7 +81,12 @@ export default function Futures() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ mode: "futures", symbol, interval, snapshot: snap, signal: sig, accountSize, maxLev }),
+        body: JSON.stringify({
+          mode: "futures", symbol, interval,
+          snapshot: snap, signal: sig,
+          multiTf: mtfSnaps,
+          accountSize, maxLev,
+        }),
       });
       if (!resp.ok) {
         if (resp.status === 429) throw new Error("Rate limit hit.");
@@ -76,10 +99,10 @@ export default function Futures() {
     finally { setLoading(false); }
   };
 
-  const liqPct = plan ? (100 / plan.leverage) * 0.85 : 0; // rough est, 85% of margin loss
+  const liqPct = plan ? (100 / plan.leverage) * 0.85 : 0;
   const stopDistPct = plan ? Math.abs((plan.entry.low - plan.stop) / plan.entry.low) * 100 : 0;
   const positionUsd = plan ? (accountSize * plan.riskPct) / 100 / (stopDistPct / 100) : 0;
-  const notional = positionUsd; // 1x notional view; leverage applies to margin
+  const notional = positionUsd;
   const margin = plan ? notional / plan.leverage : 0;
 
   return (
@@ -119,10 +142,40 @@ export default function Futures() {
 
           {snap && sig && (
             <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface-elevated p-2 font-mono text-xs">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Live Read</span>
-              <div className="flex justify-between"><span>Price</span><span className="font-bold">${formatPrice(snap.price)}</span></div>
-              <div className="flex justify-between"><span>RSI</span><span>{snap.rsi14?.toFixed(1)}</span></div>
-              <div className="flex justify-between"><span>Bias</span><span className={cn("uppercase font-bold", sig.bias === "bull" ? "text-bull" : sig.bias === "bear" ? "text-bear" : "text-muted-foreground")}>{sig.bias}</span></div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Live Read</span>
+                <Activity className="size-3 text-primary" />
+              </div>
+              <Row k="Price" v={`$${formatPrice(snap.price)}`} bold />
+              <Row k="RSI(14)" v={snap.rsi14?.toFixed(1) ?? "—"} />
+              <Row k="Stoch %K/%D" v={snap.stochK !== null && snap.stochD !== null ? `${snap.stochK.toFixed(0)}/${snap.stochD.toFixed(0)}` : "—"} />
+              <Row k="ATR%" v={snap.atrPct !== null ? `${snap.atrPct.toFixed(2)}%` : "—"} />
+              <Row k="BB %B" v={snap.bbPercentB !== null ? snap.bbPercentB.toFixed(2) : "—"} />
+              <Row k="Vol vs avg" v={snap.volRatio !== null ? `${snap.volRatio.toFixed(2)}×` : "—"} />
+              <Row k="Bias" v={sig.bias.toUpperCase()} cls={sig.bias === "bull" ? "text-bull" : sig.bias === "bear" ? "text-bear" : "text-muted-foreground"} bold />
+              <Row k="Score" v={String(sig.score)} />
+            </div>
+          )}
+
+          {mtfSnaps.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-md border border-border bg-surface-elevated p-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">MTF Bias</span>
+              <div className="flex gap-1">
+                {mtfSnaps.map((tf) => (
+                  <div
+                    key={tf.interval}
+                    className={cn(
+                      "flex-1 rounded border px-1 py-1 text-center font-mono",
+                      tf.signal.bias === "bull" ? "border-bull/40 bg-bull/10 text-bull"
+                      : tf.signal.bias === "bear" ? "border-bear/40 bg-bear/10 text-bear"
+                      : "border-border text-muted-foreground"
+                    )}
+                  >
+                    <div className="text-[10px] font-bold">{tf.interval}</div>
+                    <div className="text-[9px] uppercase">{tf.signal.bias}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -148,12 +201,12 @@ export default function Futures() {
             <Rocket className="size-10 text-muted-foreground/40" />
             <h2 className="font-mono text-lg font-bold neon-text">Futures Trading Master</h2>
             <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
-              Long/short bias, leverage discipline, liquidation distance, and risk-managed sizing — all derived from live indicators and AI reasoning.
+              Long/short bias with leverage discipline, liquidation distance, multi-timeframe confluence, indicator breakdown, and bull/bear scenarios — all derived from live indicators and AI reasoning.
             </p>
           </div>
         )}
-        {plan && (
-          <div className="flex flex-col gap-4 p-4">
+        {plan && snap && (
+          <div className="flex flex-col gap-3 p-3">
             <div className={cn("rounded-lg border-2 p-4", plan.side === "long" ? "border-bull bg-bull/10" : plan.side === "short" ? "border-bear bg-bear/10" : "border-muted bg-muted/20")}>
               <div className="flex flex-wrap items-end justify-between gap-2">
                 <div>
@@ -200,12 +253,30 @@ export default function Futures() {
               </div>
             </div>
 
+            {plan.fundingNote && (
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-2.5">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-warning">⚠ Funding / Positioning</span>
+                <p className="mt-0.5 font-mono text-xs text-foreground/80">{plan.fundingNote}</p>
+              </div>
+            )}
+
+            <PlanDetails plan={plan} side={plan.side} currentPrice={snap.price} />
+
             <p className="font-mono text-[10px] text-muted-foreground">
               ⚠ Leverage trading can wipe out your account in minutes. Liquidation estimate is approximate (excludes funding & fees). Educational only — not financial advice.
             </p>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function Row({ k, v, cls, bold }: { k: string; v: string; cls?: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{k}</span>
+      <span className={cn(cls, bold && "font-bold tabular-nums")}>{v}</span>
     </div>
   );
 }
