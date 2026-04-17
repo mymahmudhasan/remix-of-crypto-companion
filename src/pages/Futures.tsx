@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
@@ -6,6 +6,7 @@ import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSi
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
 import { CandleChart } from "@/components/CandleChart";
+import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 
 interface FuturesPlan extends PlanCommon {
