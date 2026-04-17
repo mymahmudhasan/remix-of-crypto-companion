@@ -86,6 +86,22 @@ export function bollinger(values: number[], period = 20, mult = 2) {
   return { upper, mid, lower };
 }
 
+/** Donchian Channels — N-period rolling high/low + midpoint. */
+export function donchian(highs: number[], lows: number[], period = 20) {
+  const upper: (number | null)[] = [];
+  const lower: (number | null)[] = [];
+  const mid: (number | null)[] = [];
+  for (let i = 0; i < highs.length; i++) {
+    if (i < period - 1) { upper.push(null); lower.push(null); mid.push(null); continue; }
+    const hh = Math.max(...highs.slice(i - period + 1, i + 1));
+    const ll = Math.min(...lows.slice(i - period + 1, i + 1));
+    upper.push(hh);
+    lower.push(ll);
+    mid.push((hh + ll) / 2);
+  }
+  return { upper, mid, lower };
+}
+
 /** Average True Range — needs OHLC, but we approximate from closes when only closes are available. */
 export function atrFromOHLC(highs: number[], lows: number[], closes: number[], period = 14): (number | null)[] {
   const tr: number[] = [0];
