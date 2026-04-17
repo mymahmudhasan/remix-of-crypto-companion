@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, RefreshCw, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles } from "lucide-react";
 import { fetch24h, formatCompact, formatPrice } from "@/lib/binance";
 import { tickerToRow, sortRows, SCANNER_UNIVERSE, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ const SPREADS = [
 const PAGE_SIZES = [25, 50, 100, 200];
 
 export default function Scanner() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ScannerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
@@ -144,11 +146,17 @@ export default function Scanner() {
                   : Math.abs(r.changePct) > 8 ? { label: up ? "Momentum ↑" : "Breakdown ↓", cls: up ? "bg-bull/15 text-bull border-bull/30" : "bg-bear/15 text-bear border-bear/30" }
                   : { label: "Neutral", cls: "bg-muted/20 text-muted-foreground border-border" };
                 return (
-                  <tr key={r.symbol} className="group transition-colors hover:bg-surface-hover">
+                  <tr
+                    key={r.symbol}
+                    onClick={() => navigate(`/spot?symbol=${r.symbol}`)}
+                    className="group cursor-pointer transition-colors hover:bg-surface-hover"
+                    title={`Analyze ${r.base}/USDT with AI`}
+                  >
                     <td className="border-b border-border/50 px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-semibold text-foreground">{r.base}</span>
+                        <span className="font-mono text-sm font-semibold text-foreground group-hover:text-primary">{r.base}</span>
                         <span className="font-mono text-[10px] text-muted-foreground">/USDT</span>
+                        <Sparkles className="size-3 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
                       </div>
                     </td>
                     <td className="border-b border-border/50 px-3 py-2 text-right font-mono text-sm tabular-nums">{formatPrice(r.last)}</td>

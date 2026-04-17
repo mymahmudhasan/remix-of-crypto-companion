@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshot, scoreSignal } from "@/lib/indicators";
@@ -21,7 +22,15 @@ const TOP_SYMBOLS = SCANNER_UNIVERSE.slice(0, 30);
 const LEVERAGES = [3, 5, 10, 20, 50];
 
 export default function Futures() {
-  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [params] = useSearchParams();
+  const initialSymbol = (params.get("symbol") || "BTCUSDT").toUpperCase();
+  const [symbol, setSymbol] = useState(initialSymbol);
+
+  useEffect(() => {
+    const s = params.get("symbol");
+    if (s) setSymbol(s.toUpperCase());
+  }, [params]);
+
   const [interval, setInterval] = useState("1h");
   const [accountSize, setAccountSize] = useState(10_000);
   const [maxLev, setMaxLev] = useState(10);
@@ -84,7 +93,7 @@ export default function Futures() {
           <label className="flex flex-col gap-1">
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Symbol</span>
             <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="select-style">
-              {TOP_SYMBOLS.map((s) => <option key={s} value={s}>{s.replace("USDT", "-PERP")}</option>)}
+              {Array.from(new Set([symbol, ...TOP_SYMBOLS])).map((s) => <option key={s} value={s}>{s.replace("USDT", "-PERP")}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1">
