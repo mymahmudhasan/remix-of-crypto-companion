@@ -20,10 +20,10 @@ interface Props {
 }
 
 const QUICK_PROMPTS = [
-  "What's the current setup?",
+  "Full analysis on this chart",
+  "Where are the liquidity walls?",
+  "Funding & liquidation pressure?",
   "Is SOL overbought right now?",
-  "What's the news on BTC?",
-  "How's gas on Ethereum?",
 ];
 
 const TOOL_LABEL: Record<string, string> = {
@@ -31,6 +31,8 @@ const TOOL_LABEL: Record<string, string> = {
   get_indicators: "📊 Indicators",
   get_gas: "⛽ Gas",
   get_news_sentiment: "📰 News",
+  get_orderbook_heatmap: "🔥 Heatmap",
+  get_liquidations: "💥 Liquidations",
   get_token_security: "🛡 Security",
 };
 
