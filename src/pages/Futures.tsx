@@ -5,6 +5,7 @@ import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSignal } from "@/lib/indicators";
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
+import { CandleChart } from "@/components/CandleChart";
 import { cn } from "@/lib/utils";
 
 interface FuturesPlan extends PlanCommon {
