@@ -43,6 +43,7 @@ export default function Futures() {
   const [error, setError] = useState<string | null>(null);
   const [snap, setSnap] = useState<IndicatorSnapshot | null>(null);
   const [mtfSnaps, setMtfSnaps] = useState<TFSnap[]>([]);
+  const chartWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -198,7 +199,7 @@ export default function Futures() {
       </div>
 
       <div className="flex min-h-0 flex-col gap-2">
-        <div className="panel h-[260px] shrink-0 overflow-hidden p-2">
+        <div ref={chartWrapRef} className="panel h-[260px] shrink-0 overflow-hidden p-2">
           <CandleChart symbol={symbol} interval={interval} />
         </div>
         <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
