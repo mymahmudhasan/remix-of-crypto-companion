@@ -108,6 +108,19 @@ export default function Scanner() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setFavOnly((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors",
+            favOnly
+              ? "border-warning bg-warning/15 text-warning"
+              : "border-border bg-surface-elevated text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          )}
+          title="Show only starred pairs"
+        >
+          <Star className={cn("size-3.5", favOnly && "fill-current")} />
+          Favorites {favCount > 0 && `(${favCount})`}
+        </button>
         <select
           value={pageSize}
           onChange={(e) => setPageSize(Number(e.target.value))}
@@ -133,6 +146,7 @@ export default function Scanner() {
           <table className="w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur">
               <tr>
+                <th className="border-b border-border px-2 py-2 w-8"></th>
                 <th className="border-b border-border px-3 py-2 text-left"><Th k={"changePct" as SortKey} label="Pair" align="left" /></th>
                 <th className="border-b border-border px-3 py-2"><Th k="last" label="Last" /></th>
                 <th className="border-b border-border px-3 py-2 hidden sm:table-cell"><Th k="changePct" label="24h %" /></th>
@@ -141,6 +155,9 @@ export default function Scanner() {
                 <th className="border-b border-border px-3 py-2"><Th k="quoteVolume" label="Volume" /></th>
                 <th className="border-b border-border px-3 py-2 text-right hidden md:table-cell">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Signal</span>
+                </th>
+                <th className="border-b border-border px-3 py-2 text-right">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Plan</span>
                 </th>
               </tr>
             </thead>
