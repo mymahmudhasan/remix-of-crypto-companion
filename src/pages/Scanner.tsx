@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles } from "lucide-react";
-import { fetch24h, formatCompact, formatPrice } from "@/lib/binance";
-import { tickerToRow, sortRows, SCANNER_UNIVERSE, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
+import { fetch24h, fetchAllUsdtSymbols, formatCompact, formatPrice } from "@/lib/binance";
+import { tickerToRow, sortRows, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
 import { cn } from "@/lib/utils";
 
 const SPREADS = [
@@ -28,8 +28,12 @@ export default function Scanner() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const data = await fetch24h(SCANNER_UNIVERSE);
-      const r = data.map((t) => tickerToRow(t)).filter(Boolean) as ScannerRow[];
+      // Fetch ALL Binance USDT pairs (spot + web3 tokens — anything trading on Binance)
+      const symbols = await fetchAllUsdtSymbols();
+      const data = await fetch24h(symbols);
+      const r = data
+        .map((t) => tickerToRow(t))
+        .filter((x): x is ScannerRow => !!x && x.quoteVolume > 10_000); // drop dust pairs
       setRows(r);
       setUpdatedAt(new Date());
     } catch (e) {
@@ -82,7 +86,7 @@ export default function Scanner() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search symbol… e.g. BTC"
+            placeholder={`Search any Binance USDT pair… e.g. PEPE, WLD, JUP (${rows.length} loaded)`}
             className="w-full rounded-md border border-border bg-surface-elevated py-1.5 pl-7 pr-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
           />
         </div>

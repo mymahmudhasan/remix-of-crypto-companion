@@ -20,11 +20,39 @@ export interface Kline {
 
 const REST = "https://api.binance.com";
 
-export async function fetch24h(symbols: string[]): Promise<Ticker24h[]> {
-  const param = encodeURIComponent(JSON.stringify(symbols));
-  const res = await fetch(`${REST}/api/v3/ticker/24hr?symbols=${param}`);
+export async function fetch24h(symbols?: string[]): Promise<Ticker24h[]> {
+  const url = symbols && symbols.length
+    ? `${REST}/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`
+    : `${REST}/api/v3/ticker/24hr`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Binance 24h ${res.status}`);
   return res.json();
+}
+
+export interface ExchangeSymbol {
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  status: string;
+  isSpotTradingAllowed: boolean;
+}
+
+let _exchangeInfoCache: ExchangeSymbol[] | null = null;
+export async function fetchExchangeInfo(): Promise<ExchangeSymbol[]> {
+  if (_exchangeInfoCache) return _exchangeInfoCache;
+  const res = await fetch(`${REST}/api/v3/exchangeInfo`);
+  if (!res.ok) throw new Error(`Binance exchangeInfo ${res.status}`);
+  const data = await res.json();
+  _exchangeInfoCache = (data.symbols as ExchangeSymbol[]).filter(
+    (s) => s.status === "TRADING" && s.isSpotTradingAllowed
+  );
+  return _exchangeInfoCache;
+}
+
+/** Fetch all currently TRADING USDT spot pairs from Binance. */
+export async function fetchAllUsdtSymbols(): Promise<string[]> {
+  const info = await fetchExchangeInfo();
+  return info.filter((s) => s.quoteAsset === "USDT").map((s) => s.symbol);
 }
 
 export async function fetchKlines(symbol: string, interval: string, limit = 200): Promise<Kline[]> {

@@ -39,7 +39,7 @@ const SPOT_SCHEMA = {
     },
     stop: { type: "number" },
     targets: { type: "array", items: { type: "number" }, minItems: 1, maxItems: 4 },
-    riskPct: { type: "number", minimum: 0.25, maximum: 5 },
+    riskPct: { type: "number", minimum: 0.1, maximum: 5 },
     rationale: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 6 },
     invalidations: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 },
   },
@@ -61,7 +61,7 @@ const FUTURES_SCHEMA = {
     },
     stop: { type: "number" },
     targets: { type: "array", items: { type: "number" }, minItems: 1, maxItems: 4 },
-    riskPct: { type: "number", minimum: 0.25, maximum: 3 },
+    riskPct: { type: "number", minimum: 0.1, maximum: 3 },
     rationale: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 6 },
     invalidations: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 },
   },
@@ -135,7 +135,7 @@ Return your plan via the ${tool.name} function only.`;
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: isFutures ? sysFutures : sysSpot },
           { role: "user", content: userMsg },
