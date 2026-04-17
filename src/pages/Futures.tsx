@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
@@ -6,6 +6,7 @@ import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSi
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
 import { CandleChart } from "@/components/CandleChart";
+import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 
 interface FuturesPlan extends PlanCommon {
@@ -42,6 +43,7 @@ export default function Futures() {
   const [error, setError] = useState<string | null>(null);
   const [snap, setSnap] = useState<IndicatorSnapshot | null>(null);
   const [mtfSnaps, setMtfSnaps] = useState<TFSnap[]>([]);
+  const chartWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,7 +199,7 @@ export default function Futures() {
       </div>
 
       <div className="flex min-h-0 flex-col gap-2">
-        <div className="panel h-[260px] shrink-0 overflow-hidden p-2">
+        <div ref={chartWrapRef} className="panel h-[260px] shrink-0 overflow-hidden p-2">
           <CandleChart symbol={symbol} interval={interval} />
         </div>
         <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
@@ -246,6 +248,17 @@ export default function Futures() {
                   </div>
                 </>
               )}
+
+              <SavePlanButton
+                mode="futures"
+                symbol={symbol}
+                interval={interval}
+                side={plan.side}
+                leverage={plan.leverage}
+                entryPrice={snap.price}
+                plan={plan}
+                getChartEl={() => chartWrapRef.current}
+              />
 
               <div className="grid gap-3 lg:grid-cols-2">
                 <div className="panel p-3">

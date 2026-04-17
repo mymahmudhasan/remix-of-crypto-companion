@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, Loader2, AlertCircle, Target, Shield, TrendingUp, DollarSign, Activity } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
@@ -6,6 +6,7 @@ import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSi
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
 import { CandleChart } from "@/components/CandleChart";
+import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 
 interface SpotPlan extends PlanCommon {
@@ -183,30 +184,52 @@ export default function Spot() {
       </div>
 
       {/* Right column: chart preview + plan output */}
-      <div className="flex min-h-0 flex-col gap-2">
-        <div className="panel h-[260px] shrink-0 overflow-hidden p-2">
-          <CandleChart symbol={symbol} interval={interval} />
-        </div>
-        <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-          {!plan && !loading && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-              <ShoppingCart className="size-10 text-muted-foreground/40" />
-              <h2 className="font-mono text-lg font-bold neon-text">Spot Trading Master</h2>
-              <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
-                Pick a symbol and timeframe, then generate an in-depth spot plan with indicator breakdown, multi-timeframe confluence, bull/bear scenarios, and risk:reward per target.
-              </p>
-            </div>
-          )}
-          {plan && snap && (
-            <PlanView
-              plan={plan}
-              symbol={symbol}
-              positionUsd={positionUsd}
-              currentPrice={snap.price}
-              side={planSide}
-            />
-          )}
-        </div>
+      <RightColumn
+        symbol={symbol}
+        interval={interval}
+        plan={plan}
+        loading={loading}
+        snap={snap}
+        positionUsd={positionUsd}
+        planSide={planSide}
+      />
+    </div>
+  );
+}
+
+function RightColumn({
+  symbol, interval, plan, loading, snap, positionUsd, planSide,
+}: {
+  symbol: string; interval: string; plan: SpotPlan | null; loading: boolean;
+  snap: IndicatorSnapshot | null; positionUsd: number; planSide: "long" | "short" | "neutral";
+}) {
+  const chartWrapRef = useRef<HTMLDivElement>(null);
+  return (
+    <div className="flex min-h-0 flex-col gap-2">
+      <div ref={chartWrapRef} className="panel h-[260px] shrink-0 overflow-hidden p-2">
+        <CandleChart symbol={symbol} interval={interval} />
+      </div>
+      <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+        {!plan && !loading && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <ShoppingCart className="size-10 text-muted-foreground/40" />
+            <h2 className="font-mono text-lg font-bold neon-text">Spot Trading Master</h2>
+            <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
+              Pick a symbol and timeframe, then generate an in-depth spot plan with indicator breakdown, multi-timeframe confluence, bull/bear scenarios, and risk:reward per target.
+            </p>
+          </div>
+        )}
+        {plan && snap && (
+          <PlanView
+            plan={plan}
+            symbol={symbol}
+            interval={interval}
+            positionUsd={positionUsd}
+            currentPrice={snap.price}
+            side={planSide}
+            getChartEl={() => chartWrapRef.current}
+          />
+        )}
       </div>
     </div>
   );
@@ -230,8 +253,9 @@ function Row({ k, v, cls, bold }: { k: string; v: string; cls?: string; bold?: b
   );
 }
 
-function PlanView({ plan, symbol, positionUsd, currentPrice, side }: {
-  plan: SpotPlan; symbol: string; positionUsd: number; currentPrice: number; side: "long" | "short" | "neutral";
+function PlanView({ plan, symbol, interval, positionUsd, currentPrice, side, getChartEl }: {
+  plan: SpotPlan; symbol: string; interval: string; positionUsd: number; currentPrice: number; side: "long" | "short" | "neutral";
+  getChartEl: () => HTMLElement | null;
 }) {
   const actionMeta: Record<SpotPlan["action"], { cls: string; label: string }> = {
     buy: { cls: "border-bull bg-bull/10 text-bull", label: "▲ BUY" },
@@ -262,6 +286,17 @@ function PlanView({ plan, symbol, positionUsd, currentPrice, side }: {
         <KPI icon={Target} label="Targets" value={plan.targets.map((t) => `$${formatPrice(t)}`).join(" → ")} tone="primary" />
         <KPI icon={DollarSign} label="Position Size" value={`$${positionUsd.toFixed(0)} (risk ${plan.riskPct}%)`} tone="primary" />
       </div>
+
+      <SavePlanButton
+        mode="spot"
+        symbol={symbol}
+        interval={interval}
+        side={side}
+        action={plan.action}
+        entryPrice={currentPrice}
+        plan={plan}
+        getChartEl={getChartEl}
+      />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="panel p-3">
