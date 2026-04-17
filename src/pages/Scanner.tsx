@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles, Star, ShoppingCart, Rocket } from "lucide-react";
 import { fetch24h, fetchAllUsdtSymbols, formatCompact, formatPrice } from "@/lib/binance";
 import { tickerToRow, sortRows, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
+import { useFavorites } from "@/hooks/use-favorites";
 import { cn } from "@/lib/utils";
 
 const SPREADS = [
@@ -16,11 +17,13 @@ const PAGE_SIZES = [25, 50, 100, 200];
 
 export default function Scanner() {
   const navigate = useNavigate();
+  const { isFavorite, toggle, count: favCount } = useFavorites();
   const [rows, setRows] = useState<ScannerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
   const [query, setQuery] = useState("");
   const [spread, setSpread] = useState<typeof SPREADS[number]["id"]>("all");
+  const [favOnly, setFavOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("quoteVolume");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pageSize, setPageSize] = useState(50);
@@ -51,13 +54,14 @@ export default function Scanner() {
 
   const filtered = useMemo(() => {
     let r = rows;
+    if (favOnly) r = r.filter((x) => isFavorite(x.symbol));
     if (query.trim()) {
       const q = query.trim().toUpperCase();
       r = r.filter((x) => x.base.includes(q) || x.symbol.includes(q));
     }
     if (spread !== "all") r = r.filter((x) => x.spreadCategory === spread);
     return sortRows(r, sortKey, sortDir).slice(0, pageSize);
-  }, [rows, query, spread, sortKey, sortDir, pageSize]);
+  }, [rows, query, spread, sortKey, sortDir, pageSize, favOnly, isFavorite]);
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
