@@ -1,4 +1,4 @@
-import { corsHeaders } from "@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 
 interface IndicatorSnapshot {
   price: number;
