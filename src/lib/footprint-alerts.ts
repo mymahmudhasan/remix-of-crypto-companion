@@ -59,7 +59,7 @@ export function shouldAlert(symbol: string, fp: Footprint): boolean {
   const seen = loadSeen();
   if (seen[key]) return false;
   seen[key] = Date.now();
-  saveSeen(key && seen);
+  saveSeen(seen);
   return true;
 }
 

@@ -3,6 +3,7 @@ import { Activity, Wifi, LayoutDashboard, Radar, ShoppingCart, Rocket, Flame, Lo
 import { NavLink } from "@/components/NavLink";
 import { TickerBar } from "@/components/TickerBar";
 import { FavoritesStrip } from "@/components/FavoritesStrip";
+import { FootprintAlertsWatcher } from "@/components/FootprintAlertsWatcher";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -33,7 +34,8 @@ export function AppLayout() {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <FootprintAlertsWatcher />
           <span className="hidden items-center gap-1.5 md:flex">
             <Wifi className="size-3 text-bull" /> Binance · Live
           </span>
