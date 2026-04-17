@@ -170,6 +170,7 @@ export default function Scanner() {
                   : nearHigh && r.changePct > 5 ? { label: "Overextended", cls: "bg-bear/15 text-bear border-bear/30" }
                   : Math.abs(r.changePct) > 8 ? { label: up ? "Momentum ↑" : "Breakdown ↓", cls: up ? "bg-bull/15 text-bull border-bull/30" : "bg-bear/15 text-bear border-bear/30" }
                   : { label: "Neutral", cls: "bg-muted/20 text-muted-foreground border-border" };
+                const fav = isFavorite(r.symbol);
                 return (
                   <tr
                     key={r.symbol}
@@ -177,6 +178,19 @@ export default function Scanner() {
                     className="group cursor-pointer transition-colors hover:bg-surface-hover"
                     title={`Analyze ${r.base}/USDT with AI`}
                   >
+                    <td className="border-b border-border/50 px-2 py-2 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggle(r.symbol); }}
+                        className={cn(
+                          "rounded p-1 transition-colors",
+                          fav ? "text-warning hover:text-warning/80" : "text-muted-foreground/40 hover:text-warning"
+                        )}
+                        aria-label={fav ? `Unstar ${r.base}` : `Star ${r.base}`}
+                        title={fav ? "Remove from favorites" : "Add to favorites"}
+                      >
+                        <Star className={cn("size-3.5", fav && "fill-current")} />
+                      </button>
+                    </td>
                     <td className="border-b border-border/50 px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm font-semibold text-foreground group-hover:text-primary">{r.base}</span>
@@ -209,11 +223,33 @@ export default function Scanner() {
                         {signal.label}
                       </span>
                     </td>
+                    <td className="border-b border-border/50 px-2 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/spot?symbol=${r.symbol}`); }}
+                          className="flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
+                          title="Spot AI plan"
+                        >
+                          <ShoppingCart className="size-3" />
+                          <span className="hidden sm:inline">Spot</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/futures?symbol=${r.symbol}`); }}
+                          className="flex items-center gap-1 rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-accent hover:bg-accent/20"
+                          title="Futures AI plan"
+                        >
+                          <Rocket className="size-3" />
+                          <span className="hidden sm:inline">Fut</span>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-3 py-12 text-center font-mono text-xs text-muted-foreground">No pairs match these filters.</td></tr>
+                <tr><td colSpan={9} className="px-3 py-12 text-center font-mono text-xs text-muted-foreground">
+                  {favOnly && favCount === 0 ? "No favorites yet — click the ☆ on any row to pin it." : "No pairs match these filters."}
+                </td></tr>
               )}
             </tbody>
           </table>
