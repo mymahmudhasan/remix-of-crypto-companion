@@ -66,6 +66,9 @@ export default function Plans() {
   const [tab, setTab] = useState<FilterTab>("all");
   const [modeFilter, setModeFilter] = useState<"all" | "spot" | "futures">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  /** Tracks ids we've already auto-resolved this session so we don't retry on every tick. */
+  const resolvedRef = useRef<Set<string>>(new Set());
 
   const load = async () => {
     setLoading(true); setError(null);
