@@ -1,13 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bookmark, Trophy, X, Trash2, Loader2, ArrowUpRight,
-  TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock,
+  TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock, Radio,
 } from "lucide-react";
 import { plansClient, SAVED_PLANS_TABLE } from "@/lib/plans-client";
-import { formatPrice } from "@/lib/binance";
+import { formatPrice, subscribeMiniTickers } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+/** Compute PnL % from entry to current price (leverage-aware for futures). */
+function computePnlPct(side: string, action: string | null, entry: number, price: number, leverage: number | null): number {
+  if (!entry || !price) return 0;
+  const isShort = side === "short" || action === "sell";
+  const raw = ((price - entry) / entry) * 100 * (isShort ? -1 : 1);
+  return raw * (leverage && leverage > 1 ? leverage : 1);
+}
+
+/** Decide if an open plan should auto-resolve given the latest price. */
+function checkAutoResolve(
+  row: { status: string; side: string; action: string | null; stop: number; targets: number[] },
+  price: number
+): "won" | "lost" | null {
+  if (row.status !== "open") return null;
+  const isShort = row.side === "short" || row.action === "sell";
+  const tp1 = row.targets?.[0];
+  if (isShort) {
+    if (price >= row.stop) return "lost";
+    if (tp1 && price <= tp1) return "won";
+  } else {
+    if (price <= row.stop) return "lost";
+    if (tp1 && price >= tp1) return "won";
+  }
+  return null;
+}
 
 interface SavedPlanRow {
   id: string;
