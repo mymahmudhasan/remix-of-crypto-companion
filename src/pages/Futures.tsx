@@ -93,7 +93,7 @@ export default function Futures() {
           <label className="flex flex-col gap-1">
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Symbol</span>
             <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="select-style">
-              {TOP_SYMBOLS.map((s) => <option key={s} value={s}>{s.replace("USDT", "-PERP")}</option>)}
+              {Array.from(new Set([symbol, ...TOP_SYMBOLS])).map((s) => <option key={s} value={s}>{s.replace("USDT", "-PERP")}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1">

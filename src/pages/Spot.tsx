@@ -87,7 +87,7 @@ export default function Spot() {
         <div className="flex flex-col gap-3 p-3">
           <Field label="Symbol">
             <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="select-style">
-              {TOP_SYMBOLS.map((s) => <option key={s} value={s}>{s.replace("USDT", "/USDT")}</option>)}
+              {Array.from(new Set([symbol, ...TOP_SYMBOLS])).map((s) => <option key={s} value={s}>{s.replace("USDT", "/USDT")}</option>)}
             </select>
           </Field>
           <Field label="Timeframe">
