@@ -1,13 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bookmark, Trophy, X, Trash2, Loader2, ArrowUpRight,
   TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock,
 } from "lucide-react";
 import { plansClient, SAVED_PLANS_TABLE } from "@/lib/plans-client";
-import { formatPrice } from "@/lib/binance";
+import { formatPrice, subscribeMiniTickers } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+/** Compute PnL % from entry to current price (leverage-aware for futures). */
+function computePnlPct(side: string, action: string | null, entry: number, price: number, leverage: number | null): number {
+  if (!entry || !price) return 0;
+  const isShort = side === "short" || action === "sell";
+  const raw = ((price - entry) / entry) * 100 * (isShort ? -1 : 1);
+  return raw * (leverage && leverage > 1 ? leverage : 1);
+}
+
+/** Decide if an open plan should auto-resolve given the latest price. */
+function checkAutoResolve(
+  row: { status: string; side: string; action: string | null; stop: number; targets: number[] },
+  price: number
+): "won" | "lost" | null {
+  if (row.status !== "open") return null;
+  const isShort = row.side === "short" || row.action === "sell";
+  const tp1 = row.targets?.[0];
+  if (isShort) {
+    if (price >= row.stop) return "lost";
+    if (tp1 && price <= tp1) return "won";
+  } else {
+    if (price <= row.stop) return "lost";
+    if (tp1 && price >= tp1) return "won";
+  }
+  return null;
+}
 
 interface SavedPlanRow {
   id: string;
@@ -40,6 +66,9 @@ export default function Plans() {
   const [tab, setTab] = useState<FilterTab>("all");
   const [modeFilter, setModeFilter] = useState<"all" | "spot" | "futures">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  /** Tracks ids we've already auto-resolved this session so we don't retry on every tick. */
+  const resolvedRef = useRef<Set<string>>(new Set());
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -54,6 +83,58 @@ export default function Plans() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Subscribe to live mini-tickers for every distinct symbol that has an open plan.
+  // Reconnects whenever the open-symbol set changes.
+  const openSymbols = useMemo(
+    () => Array.from(new Set(rows.filter((r) => r.status === "open").map((r) => r.symbol))).sort(),
+    [rows]
+  );
+  const openSymbolsKey = openSymbols.join(",");
+
+  useEffect(() => {
+    if (openSymbols.length === 0) return;
+    const unsub = subscribeMiniTickers(openSymbols, (m) => {
+      const price = parseFloat(m.c);
+      if (!isFinite(price)) return;
+      setLivePrices((prev) => (prev[m.s] === price ? prev : { ...prev, [m.s]: price }));
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSymbolsKey]);
+
+  // Auto-resolve open plans whose live price has hit TP1 or stop.
+  useEffect(() => {
+    for (const r of rows) {
+      if (r.status !== "open") continue;
+      if (resolvedRef.current.has(r.id)) continue;
+      const price = livePrices[r.symbol];
+      if (!price) continue;
+      const verdict = checkAutoResolve(r, price);
+      if (!verdict) continue;
+      resolvedRef.current.add(r.id);
+      // Optimistic UI
+      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: verdict, closed_price: price } : x)));
+      // Persist
+      plansClient
+        .from(SAVED_PLANS_TABLE)
+        .update({ status: verdict, closed_price: price } as any)
+        .eq("id", r.id)
+        .then(({ error }) => {
+          if (error) {
+            // Roll back if the DB write fails so we don't desync
+            resolvedRef.current.delete(r.id);
+            setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: "open", closed_price: null } : x)));
+            toast.error("Auto-resolve failed", { description: error.message });
+            return;
+          }
+          toast[verdict === "won" ? "success" : "error"](
+            `${r.symbol.replace("USDT", "")} ${verdict === "won" ? "hit TP1 ✓" : "stopped out ✗"}`,
+            { description: `Auto-closed at $${formatPrice(price)}` }
+          );
+        });
+    }
+  }, [livePrices, rows]);
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -176,6 +257,7 @@ export default function Plans() {
               <PlanCard
                 key={r.id}
                 row={r}
+                livePrice={livePrices[r.symbol] ?? null}
                 onStatus={setStatus}
                 onDelete={remove}
                 busy={busyId === r.id}
@@ -189,9 +271,10 @@ export default function Plans() {
 }
 
 function PlanCard({
-  row, onStatus, onDelete, busy,
+  row, livePrice, onStatus, onDelete, busy,
 }: {
   row: SavedPlanRow;
+  livePrice: number | null;
   onStatus: (id: string, s: SavedPlanRow["status"]) => void;
   onDelete: (id: string) => void;
   busy: boolean;
@@ -258,6 +341,65 @@ function PlanCard({
         <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
           <span>Entry price @ save: <span className="font-bold tabular-nums text-foreground">${formatPrice(row.entry_price)}</span></span>
           {row.conviction != null && <span>Conviction: <span className="text-foreground">{row.conviction}/100</span></span>}
+        </div>
+      )}
+
+      {/* Live PnL — only meaningful for open plans (or to show closed_price for resolved ones). */}
+      {row.status === "open" && livePrice !== null && (() => {
+        const entry = row.entry_price ?? (row.entry_low + row.entry_high) / 2;
+        const pnl = computePnlPct(row.side, row.action, entry, livePrice, row.leverage);
+        const tp1 = row.targets?.[0];
+        const isShort = row.side === "short" || row.action === "sell";
+        // Distance to TP1 / Stop as % of the entry→target / entry→stop journey
+        const towardTpPct = tp1
+          ? Math.max(0, Math.min(100, ((isShort ? entry - livePrice : livePrice - entry) /
+              (isShort ? entry - tp1 : tp1 - entry)) * 100))
+          : 0;
+        const towardStopPct = Math.max(0, Math.min(100, ((isShort ? livePrice - entry : entry - livePrice) /
+          (isShort ? row.stop - entry : entry - row.stop)) * 100));
+        return (
+          <div className="flex flex-col gap-1 rounded-md border border-border bg-surface-elevated p-1.5">
+            <div className="flex items-center justify-between font-mono text-[10px]">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <span className="size-1.5 animate-pulse rounded-full bg-bull" /> LIVE
+                <span className="font-bold tabular-nums text-foreground">${formatPrice(livePrice)}</span>
+              </span>
+              <span className={cn(
+                "font-bold tabular-nums",
+                pnl > 0 ? "text-bull" : pnl < 0 ? "text-bear" : "text-muted-foreground"
+              )}>
+                {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+                {row.leverage && row.leverage > 1 ? <span className="ml-1 text-muted-foreground">@{row.leverage}×</span> : null}
+              </span>
+            </div>
+            {/* Twin progress bars: green = toward TP1, red = toward Stop. Whichever fills first wins. */}
+            <div className="flex h-1 gap-px overflow-hidden rounded-sm">
+              <div className="relative h-full flex-1 bg-bull/15">
+                <div className="h-full bg-bull transition-all" style={{ width: `${towardTpPct}%` }} />
+              </div>
+              <div className="relative h-full flex-1 bg-bear/15">
+                <div className="ml-auto h-full bg-bear transition-all" style={{ width: `${towardStopPct}%` }} />
+              </div>
+            </div>
+            <div className="flex justify-between font-mono text-[9px] text-muted-foreground">
+              <span>TP1 {towardTpPct.toFixed(0)}%</span>
+              <span>Stop {towardStopPct.toFixed(0)}%</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {row.status !== "open" && row.closed_price !== null && row.closed_price !== undefined && (
+        <div className="flex justify-between rounded-md border border-border bg-surface-elevated p-1.5 font-mono text-[10px]">
+          <span className="text-muted-foreground">Closed @ <span className="font-bold tabular-nums text-foreground">${formatPrice(row.closed_price)}</span></span>
+          {row.entry_price && (() => {
+            const pnl = computePnlPct(row.side, row.action, row.entry_price, row.closed_price!, row.leverage);
+            return (
+              <span className={cn("font-bold tabular-nums", pnl > 0 ? "text-bull" : pnl < 0 ? "text-bear" : "text-muted-foreground")}>
+                {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+              </span>
+            );
+          })()}
         </div>
       )}
 
