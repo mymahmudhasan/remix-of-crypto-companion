@@ -84,6 +84,58 @@ export default function Plans() {
 
   useEffect(() => { load(); }, []);
 
+  // Subscribe to live mini-tickers for every distinct symbol that has an open plan.
+  // Reconnects whenever the open-symbol set changes.
+  const openSymbols = useMemo(
+    () => Array.from(new Set(rows.filter((r) => r.status === "open").map((r) => r.symbol))).sort(),
+    [rows]
+  );
+  const openSymbolsKey = openSymbols.join(",");
+
+  useEffect(() => {
+    if (openSymbols.length === 0) return;
+    const unsub = subscribeMiniTickers(openSymbols, (m) => {
+      const price = parseFloat(m.c);
+      if (!isFinite(price)) return;
+      setLivePrices((prev) => (prev[m.s] === price ? prev : { ...prev, [m.s]: price }));
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSymbolsKey]);
+
+  // Auto-resolve open plans whose live price has hit TP1 or stop.
+  useEffect(() => {
+    for (const r of rows) {
+      if (r.status !== "open") continue;
+      if (resolvedRef.current.has(r.id)) continue;
+      const price = livePrices[r.symbol];
+      if (!price) continue;
+      const verdict = checkAutoResolve(r, price);
+      if (!verdict) continue;
+      resolvedRef.current.add(r.id);
+      // Optimistic UI
+      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: verdict, closed_price: price } : x)));
+      // Persist
+      plansClient
+        .from(SAVED_PLANS_TABLE)
+        .update({ status: verdict, closed_price: price } as any)
+        .eq("id", r.id)
+        .then(({ error }) => {
+          if (error) {
+            // Roll back if the DB write fails so we don't desync
+            resolvedRef.current.delete(r.id);
+            setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: "open", closed_price: null } : x)));
+            toast.error("Auto-resolve failed", { description: error.message });
+            return;
+          }
+          toast[verdict === "won" ? "success" : "error"](
+            `${r.symbol.replace("USDT", "")} ${verdict === "won" ? "hit TP1 ✓" : "stopped out ✗"}`,
+            { description: `Auto-closed at $${formatPrice(price)}` }
+          );
+        });
+    }
+  }, [livePrices, rows]);
+
   const stats = useMemo(() => {
     const total = rows.length;
     const open = rows.filter((r) => r.status === "open").length;
