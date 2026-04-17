@@ -99,7 +99,6 @@ export default function SmartMoney() {
   }, [screener, biasFilter, favOnly, isFavorite, search]);
 
   // ----- Detail (selected symbol) -----
-  const [candles, setCandles] = useState<Kline[]>([]);
   const [snap, setSnap] = useState<ReturnType<typeof snapshotFromCandles> | null>(null);
   const [mtf, setMtf] = useState<{ interval: string; bias: "bull" | "bear" | "neutral"; score: number }[]>([]);
   const [fps, setFps] = useState<Footprint[]>([]);

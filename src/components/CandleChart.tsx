@@ -7,6 +7,15 @@ import { cn } from "@/lib/utils";
 
 type BandMode = "bb" | "donchian" | "off";
 
+export interface ChartMarker {
+  /** Bar time in seconds (matches Kline.time). */
+  time: number;
+  position: "aboveBar" | "belowBar" | "inBar" | string;
+  shape: "arrowUp" | "arrowDown" | "circle" | "square" | string;
+  color: string;
+  text?: string;
+}
+
 interface Props {
   symbol: string;
   interval: string;
@@ -14,6 +23,8 @@ interface Props {
   initialBands?: BandMode;
   /** Initial volume visibility. Default true. */
   initialShowVolume?: boolean;
+  /** Optional event markers (e.g. footprints). Re-applied whenever the array reference changes. */
+  markers?: ChartMarker[];
   onData?: (closes: number[]) => void;
 }
 
@@ -22,6 +33,7 @@ export function CandleChart({
   interval,
   initialBands = "bb",
   initialShowVolume = true,
+  markers,
   onData,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,6 +114,23 @@ export function CandleChart({
   useEffect(() => {
     volumeRef.current?.applyOptions({ visible: showVolume });
   }, [showVolume]);
+
+  // Apply markers when prop changes
+  useEffect(() => {
+    if (!candleRef.current) return;
+    if (!markers || markers.length === 0) {
+      candleRef.current.setMarkers([]);
+      return;
+    }
+    const sorted = [...markers].sort((a, b) => a.time - b.time);
+    candleRef.current.setMarkers(sorted.map((m) => ({
+      time: m.time as any,
+      position: m.position as any,
+      shape: m.shape as any,
+      color: m.color,
+      text: m.text,
+    })));
+  }, [markers]);
 
   // Recompute band data when toggling between BB and Donchian
   useEffect(() => {
