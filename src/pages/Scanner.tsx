@@ -86,7 +86,7 @@ export default function Scanner() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search symbol… e.g. BTC"
+            placeholder={`Search any Binance USDT pair… e.g. PEPE, WLD, JUP (${rows.length} loaded)`}
             className="w-full rounded-md border border-border bg-surface-elevated py-1.5 pl-7 pr-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
           />
         </div>
