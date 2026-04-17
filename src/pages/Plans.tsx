@@ -314,6 +314,19 @@ function PlanCard({
           <span className="rounded border border-border px-1 py-px font-mono text-[9px] uppercase text-muted-foreground">
             {row.mode}
           </span>
+          {(row.action === "GO" || row.action === "WAIT" || row.action === "SKIP") && (
+            <span
+              className={cn(
+                "rounded border px-1 py-px font-mono text-[9px] font-bold uppercase",
+                row.action === "GO" ? "border-bull/40 bg-bull/10 text-bull"
+                : row.action === "WAIT" ? "border-warning/40 bg-warning/10 text-warning"
+                : "border-bear/40 bg-bear/10 text-bear"
+              )}
+              title="Coach verdict"
+            >
+              ✦ {row.action}
+            </span>
+          )}
         </div>
         <span className={cn("rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase", statusMeta[row.status])}>
           {row.status}
