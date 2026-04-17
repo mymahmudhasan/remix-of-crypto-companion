@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshot, scoreSignal } from "@/lib/indicators";
@@ -21,7 +22,15 @@ const TOP_SYMBOLS = SCANNER_UNIVERSE.slice(0, 30);
 const LEVERAGES = [3, 5, 10, 20, 50];
 
 export default function Futures() {
-  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [params] = useSearchParams();
+  const initialSymbol = (params.get("symbol") || "BTCUSDT").toUpperCase();
+  const [symbol, setSymbol] = useState(initialSymbol);
+
+  useEffect(() => {
+    const s = params.get("symbol");
+    if (s) setSymbol(s.toUpperCase());
+  }, [params]);
+
   const [interval, setInterval] = useState("1h");
   const [accountSize, setAccountSize] = useState(10_000);
   const [maxLev, setMaxLev] = useState(10);

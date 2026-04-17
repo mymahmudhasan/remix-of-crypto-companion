@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ShoppingCart, Loader2, AlertCircle, Target, Shield, TrendingUp, DollarSign } from "lucide-react";
 import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshot, scoreSignal } from "@/lib/indicators";
@@ -19,7 +20,15 @@ interface SpotPlan {
 const TOP_SYMBOLS = SCANNER_UNIVERSE.slice(0, 30);
 
 export default function Spot() {
-  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [params] = useSearchParams();
+  const initialSymbol = (params.get("symbol") || "BTCUSDT").toUpperCase();
+  const [symbol, setSymbol] = useState(initialSymbol);
+
+  useEffect(() => {
+    const s = params.get("symbol");
+    if (s) setSymbol(s.toUpperCase());
+  }, [params]);
+
   const [interval, setInterval] = useState("4h");
   const [accountSize, setAccountSize] = useState(10_000);
   const [plan, setPlan] = useState<SpotPlan | null>(null);
