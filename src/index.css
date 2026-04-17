@@ -108,6 +108,10 @@
     @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-medium;
   }
 
+  .select-style {
+    @apply rounded-md border border-border bg-surface-elevated px-2.5 py-1.5 font-mono text-xs text-foreground focus:border-primary/50 focus:outline-none;
+  }
+
   .neon-text {
     text-shadow: 0 0 12px hsl(var(--primary) / 0.6);
   }
