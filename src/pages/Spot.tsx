@@ -5,6 +5,7 @@ import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSignal } from "@/lib/indicators";
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
+import { CandleChart } from "@/components/CandleChart";
 import { cn } from "@/lib/utils";
 
 interface SpotPlan extends PlanCommon {
@@ -181,26 +182,31 @@ export default function Spot() {
         </div>
       </div>
 
-      {/* Plan output */}
-      <div className="panel min-h-0 overflow-y-auto scrollbar-thin">
-        {!plan && !loading && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <ShoppingCart className="size-10 text-muted-foreground/40" />
-            <h2 className="font-mono text-lg font-bold neon-text">Spot Trading Master</h2>
-            <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
-              Pick a symbol and timeframe, then generate an in-depth spot plan with indicator breakdown, multi-timeframe confluence, bull/bear scenarios, and risk:reward per target.
-            </p>
-          </div>
-        )}
-        {plan && snap && (
-          <PlanView
-            plan={plan}
-            symbol={symbol}
-            positionUsd={positionUsd}
-            currentPrice={snap.price}
-            side={planSide}
-          />
-        )}
+      {/* Right column: chart preview + plan output */}
+      <div className="flex min-h-0 flex-col gap-2">
+        <div className="panel h-[260px] shrink-0 overflow-hidden p-2">
+          <CandleChart symbol={symbol} interval={interval} />
+        </div>
+        <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+          {!plan && !loading && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <ShoppingCart className="size-10 text-muted-foreground/40" />
+              <h2 className="font-mono text-lg font-bold neon-text">Spot Trading Master</h2>
+              <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
+                Pick a symbol and timeframe, then generate an in-depth spot plan with indicator breakdown, multi-timeframe confluence, bull/bear scenarios, and risk:reward per target.
+              </p>
+            </div>
+          )}
+          {plan && snap && (
+            <PlanView
+              plan={plan}
+              symbol={symbol}
+              positionUsd={positionUsd}
+              currentPrice={snap.price}
+              side={planSide}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

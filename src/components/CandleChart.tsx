@@ -1,15 +1,17 @@
 import { useEffect, useRef } from "react";
 import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData, ColorType } from "lightweight-charts";
 import { fetchKlines, subscribeKline, type Kline } from "@/lib/binance";
-import { ema } from "@/lib/indicators";
+import { ema, bollinger } from "@/lib/indicators";
 
 interface Props {
   symbol: string;
   interval: string;
+  /** Show Bollinger Bands(20,2) overlay. Default true. */
+  showBollinger?: boolean;
   onData?: (closes: number[]) => void;
 }
 
-export function CandleChart({ symbol, interval, onData }: Props) {
+export function CandleChart({ symbol, interval, showBollinger = true, onData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -17,6 +19,9 @@ export function CandleChart({ symbol, interval, onData }: Props) {
   const ema20Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const ema50Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const ema200Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const bbUpperRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const bbMidRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const bbLowerRef = useRef<ISeriesApi<"Line"> | null>(null);
   const closesRef = useRef<number[]>([]);
 
   useEffect(() => {
@@ -60,8 +65,14 @@ export function CandleChart({ symbol, interval, onData }: Props) {
     ema50Ref.current = chart.addLineSeries({ color: "#ffb800", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
     ema200Ref.current = chart.addLineSeries({ color: "#c084fc", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 
+    if (showBollinger) {
+      bbUpperRef.current = chart.addLineSeries({ color: "rgba(244,114,182,0.55)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+      bbMidRef.current = chart.addLineSeries({ color: "rgba(244,114,182,0.35)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+      bbLowerRef.current = chart.addLineSeries({ color: "rgba(244,114,182,0.55)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+    }
+
     return () => { chart.remove(); chartRef.current = null; };
-  }, []);
+  }, [showBollinger]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,10 +120,13 @@ export function CandleChart({ symbol, interval, onData }: Props) {
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
-      <div className="pointer-events-none absolute left-3 top-3 flex gap-3 font-mono text-[10px]">
+      <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px]">
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#00d9ff]" /> EMA20</span>
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#ffb800]" /> EMA50</span>
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#c084fc]" /> EMA200</span>
+        {showBollinger && (
+          <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#f472b6]" /> BB(20,2)</span>
+        )}
       </div>
     </div>
   );

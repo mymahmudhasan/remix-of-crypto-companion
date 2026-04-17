@@ -5,6 +5,7 @@ import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSignal } from "@/lib/indicators";
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
+import { CandleChart } from "@/components/CandleChart";
 import { cn } from "@/lib/utils";
 
 interface FuturesPlan extends PlanCommon {
@@ -195,78 +196,83 @@ export default function Futures() {
         </div>
       </div>
 
-      <div className="panel min-h-0 overflow-y-auto scrollbar-thin">
-        {!plan && !loading && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <Rocket className="size-10 text-muted-foreground/40" />
-            <h2 className="font-mono text-lg font-bold neon-text">Futures Trading Master</h2>
-            <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
-              Long/short bias with leverage discipline, liquidation distance, multi-timeframe confluence, indicator breakdown, and bull/bear scenarios — all derived from live indicators and AI reasoning.
-            </p>
-          </div>
-        )}
-        {plan && snap && (
-          <div className="flex flex-col gap-3 p-3">
-            <div className={cn("rounded-lg border-2 p-4", plan.side === "long" ? "border-bull bg-bull/10" : plan.side === "short" ? "border-bear bg-bear/10" : "border-muted bg-muted/20")}>
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{symbol.replace("USDT", "-PERP")} · {interval}</span>
-                  <h2 className={cn("flex items-center gap-2 font-mono text-3xl font-black uppercase neon-text", plan.side === "long" ? "text-bull" : plan.side === "short" ? "text-bear" : "text-muted-foreground")}>
-                    {plan.side === "long" ? <><TrendingUp className="size-7" /> LONG {plan.leverage}×</> : plan.side === "short" ? <><TrendingDown className="size-7" /> SHORT {plan.leverage}×</> : "NEUTRAL"}
-                  </h2>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Conviction</span>
-                  <div className="font-mono text-2xl font-bold">{plan.conviction}<span className="text-sm text-muted-foreground">/100</span></div>
-                </div>
-              </div>
+      <div className="flex min-h-0 flex-col gap-2">
+        <div className="panel h-[260px] shrink-0 overflow-hidden p-2">
+          <CandleChart symbol={symbol} interval={interval} />
+        </div>
+        <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+          {!plan && !loading && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <Rocket className="size-10 text-muted-foreground/40" />
+              <h2 className="font-mono text-lg font-bold neon-text">Futures Trading Master</h2>
+              <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
+                Long/short bias with leverage discipline, liquidation distance, multi-timeframe confluence, indicator breakdown, and bull/bear scenarios — all derived from live indicators and AI reasoning.
+              </p>
             </div>
-
-            {plan.side !== "neutral" && (
-              <>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <KPI icon={Rocket} label="Entry Zone" value={`${formatPrice(plan.entry.low)} – ${formatPrice(plan.entry.high)}`} tone="primary" />
-                  <KPI icon={Shield} label="Stop Loss" value={`$${formatPrice(plan.stop)} (${stopDistPct.toFixed(2)}%)`} tone="bear" />
-                  <KPI icon={Target} label="Targets" value={plan.targets.map((t) => `$${formatPrice(t)}`).join(" → ")} tone="bull" />
-                  <KPI icon={Skull} label="Est. Liquidation" value={`~${liqPct.toFixed(1)}% adverse move`} tone="bear" />
-                </div>
-
-                <div className="panel p-3">
-                  <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-primary">Position Math</h3>
-                  <div className="grid gap-2 font-mono text-xs sm:grid-cols-3">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Notional</span><span className="font-bold">${notional.toFixed(0)}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Margin</span><span className="font-bold">${margin.toFixed(0)}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Risk</span><span className="font-bold text-bear">{plan.riskPct}% (${(accountSize * plan.riskPct / 100).toFixed(0)})</span></div>
+          )}
+          {plan && snap && (
+            <div className="flex flex-col gap-3 p-3">
+              <div className={cn("rounded-lg border-2 p-4", plan.side === "long" ? "border-bull bg-bull/10" : plan.side === "short" ? "border-bear bg-bear/10" : "border-muted bg-muted/20")}>
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{symbol.replace("USDT", "-PERP")} · {interval}</span>
+                    <h2 className={cn("flex items-center gap-2 font-mono text-3xl font-black uppercase neon-text", plan.side === "long" ? "text-bull" : plan.side === "short" ? "text-bear" : "text-muted-foreground")}>
+                      {plan.side === "long" ? <><TrendingUp className="size-7" /> LONG {plan.leverage}×</> : plan.side === "short" ? <><TrendingDown className="size-7" /> SHORT {plan.leverage}×</> : "NEUTRAL"}
+                    </h2>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Conviction</span>
+                    <div className="font-mono text-2xl font-bold">{plan.conviction}<span className="text-sm text-muted-foreground">/100</span></div>
                   </div>
                 </div>
-              </>
-            )}
+              </div>
 
-            <div className="grid gap-3 lg:grid-cols-2">
-              <div className="panel p-3">
-                <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-bull">Setup</h3>
-                <ul className="space-y-1.5">{plan.rationale.map((r, i) => <li key={i} className="flex items-start gap-2 font-mono text-xs"><span className="mt-1 size-1 shrink-0 rounded-full bg-bull" /><span className="text-foreground/80">{r}</span></li>)}</ul>
+              {plan.side !== "neutral" && (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <KPI icon={Rocket} label="Entry Zone" value={`${formatPrice(plan.entry.low)} – ${formatPrice(plan.entry.high)}`} tone="primary" />
+                    <KPI icon={Shield} label="Stop Loss" value={`$${formatPrice(plan.stop)} (${stopDistPct.toFixed(2)}%)`} tone="bear" />
+                    <KPI icon={Target} label="Targets" value={plan.targets.map((t) => `$${formatPrice(t)}`).join(" → ")} tone="bull" />
+                    <KPI icon={Skull} label="Est. Liquidation" value={`~${liqPct.toFixed(1)}% adverse move`} tone="bear" />
+                  </div>
+
+                  <div className="panel p-3">
+                    <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-primary">Position Math</h3>
+                    <div className="grid gap-2 font-mono text-xs sm:grid-cols-3">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Notional</span><span className="font-bold">${notional.toFixed(0)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Margin</span><span className="font-bold">${margin.toFixed(0)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Risk</span><span className="font-bold text-bear">{plan.riskPct}% (${(accountSize * plan.riskPct / 100).toFixed(0)})</span></div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="panel p-3">
+                  <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-bull">Setup</h3>
+                  <ul className="space-y-1.5">{plan.rationale.map((r, i) => <li key={i} className="flex items-start gap-2 font-mono text-xs"><span className="mt-1 size-1 shrink-0 rounded-full bg-bull" /><span className="text-foreground/80">{r}</span></li>)}</ul>
+                </div>
+                <div className="panel p-3">
+                  <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-bear">Risks</h3>
+                  <ul className="space-y-1.5">{plan.invalidations.map((r, i) => <li key={i} className="flex items-start gap-2 font-mono text-xs"><span className="mt-1 size-1 shrink-0 rounded-full bg-bear" /><span className="text-foreground/80">{r}</span></li>)}</ul>
+                </div>
               </div>
-              <div className="panel p-3">
-                <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-bear">Risks</h3>
-                <ul className="space-y-1.5">{plan.invalidations.map((r, i) => <li key={i} className="flex items-start gap-2 font-mono text-xs"><span className="mt-1 size-1 shrink-0 rounded-full bg-bear" /><span className="text-foreground/80">{r}</span></li>)}</ul>
-              </div>
+
+              {plan.fundingNote && (
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-2.5">
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-warning">⚠ Funding / Positioning</span>
+                  <p className="mt-0.5 font-mono text-xs text-foreground/80">{plan.fundingNote}</p>
+                </div>
+              )}
+
+              <PlanDetails plan={plan} side={plan.side} currentPrice={snap.price} />
+
+              <p className="font-mono text-[10px] text-muted-foreground">
+                ⚠ Leverage trading can wipe out your account in minutes. Liquidation estimate is approximate (excludes funding & fees). Educational only — not financial advice.
+              </p>
             </div>
-
-            {plan.fundingNote && (
-              <div className="rounded-md border border-warning/40 bg-warning/10 p-2.5">
-                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-warning">⚠ Funding / Positioning</span>
-                <p className="mt-0.5 font-mono text-xs text-foreground/80">{plan.fundingNote}</p>
-              </div>
-            )}
-
-            <PlanDetails plan={plan} side={plan.side} currentPrice={snap.price} />
-
-            <p className="font-mono text-[10px] text-muted-foreground">
-              ⚠ Leverage trading can wipe out your account in minutes. Liquidation estimate is approximate (excludes funding & fees). Educational only — not financial advice.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
