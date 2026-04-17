@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles, Star, ShoppingCart, Rocket } from "lucide-react";
 import { fetch24h, fetchAllUsdtSymbols, formatCompact, formatPrice } from "@/lib/binance";
 import { tickerToRow, sortRows, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
+import { useFavorites } from "@/hooks/use-favorites";
 import { cn } from "@/lib/utils";
 
 const SPREADS = [
@@ -16,11 +17,13 @@ const PAGE_SIZES = [25, 50, 100, 200];
 
 export default function Scanner() {
   const navigate = useNavigate();
+  const { isFavorite, toggle, count: favCount } = useFavorites();
   const [rows, setRows] = useState<ScannerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
   const [query, setQuery] = useState("");
   const [spread, setSpread] = useState<typeof SPREADS[number]["id"]>("all");
+  const [favOnly, setFavOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("quoteVolume");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pageSize, setPageSize] = useState(50);
@@ -51,13 +54,14 @@ export default function Scanner() {
 
   const filtered = useMemo(() => {
     let r = rows;
+    if (favOnly) r = r.filter((x) => isFavorite(x.symbol));
     if (query.trim()) {
       const q = query.trim().toUpperCase();
       r = r.filter((x) => x.base.includes(q) || x.symbol.includes(q));
     }
     if (spread !== "all") r = r.filter((x) => x.spreadCategory === spread);
     return sortRows(r, sortKey, sortDir).slice(0, pageSize);
-  }, [rows, query, spread, sortKey, sortDir, pageSize]);
+  }, [rows, query, spread, sortKey, sortDir, pageSize, favOnly, isFavorite]);
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -104,6 +108,19 @@ export default function Scanner() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setFavOnly((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors",
+            favOnly
+              ? "border-warning bg-warning/15 text-warning"
+              : "border-border bg-surface-elevated text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+          )}
+          title="Show only starred pairs"
+        >
+          <Star className={cn("size-3.5", favOnly && "fill-current")} />
+          Favorites {favCount > 0 && `(${favCount})`}
+        </button>
         <select
           value={pageSize}
           onChange={(e) => setPageSize(Number(e.target.value))}
@@ -129,6 +146,7 @@ export default function Scanner() {
           <table className="w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur">
               <tr>
+                <th className="border-b border-border px-2 py-2 w-8"></th>
                 <th className="border-b border-border px-3 py-2 text-left"><Th k={"changePct" as SortKey} label="Pair" align="left" /></th>
                 <th className="border-b border-border px-3 py-2"><Th k="last" label="Last" /></th>
                 <th className="border-b border-border px-3 py-2 hidden sm:table-cell"><Th k="changePct" label="24h %" /></th>
@@ -137,6 +155,9 @@ export default function Scanner() {
                 <th className="border-b border-border px-3 py-2"><Th k="quoteVolume" label="Volume" /></th>
                 <th className="border-b border-border px-3 py-2 text-right hidden md:table-cell">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Signal</span>
+                </th>
+                <th className="border-b border-border px-3 py-2 text-right">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Plan</span>
                 </th>
               </tr>
             </thead>
@@ -149,6 +170,7 @@ export default function Scanner() {
                   : nearHigh && r.changePct > 5 ? { label: "Overextended", cls: "bg-bear/15 text-bear border-bear/30" }
                   : Math.abs(r.changePct) > 8 ? { label: up ? "Momentum ↑" : "Breakdown ↓", cls: up ? "bg-bull/15 text-bull border-bull/30" : "bg-bear/15 text-bear border-bear/30" }
                   : { label: "Neutral", cls: "bg-muted/20 text-muted-foreground border-border" };
+                const fav = isFavorite(r.symbol);
                 return (
                   <tr
                     key={r.symbol}
@@ -156,6 +178,19 @@ export default function Scanner() {
                     className="group cursor-pointer transition-colors hover:bg-surface-hover"
                     title={`Analyze ${r.base}/USDT with AI`}
                   >
+                    <td className="border-b border-border/50 px-2 py-2 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggle(r.symbol); }}
+                        className={cn(
+                          "rounded p-1 transition-colors",
+                          fav ? "text-warning hover:text-warning/80" : "text-muted-foreground/40 hover:text-warning"
+                        )}
+                        aria-label={fav ? `Unstar ${r.base}` : `Star ${r.base}`}
+                        title={fav ? "Remove from favorites" : "Add to favorites"}
+                      >
+                        <Star className={cn("size-3.5", fav && "fill-current")} />
+                      </button>
+                    </td>
                     <td className="border-b border-border/50 px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm font-semibold text-foreground group-hover:text-primary">{r.base}</span>
@@ -188,11 +223,33 @@ export default function Scanner() {
                         {signal.label}
                       </span>
                     </td>
+                    <td className="border-b border-border/50 px-2 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/spot?symbol=${r.symbol}`); }}
+                          className="flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
+                          title="Spot AI plan"
+                        >
+                          <ShoppingCart className="size-3" />
+                          <span className="hidden sm:inline">Spot</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/futures?symbol=${r.symbol}`); }}
+                          className="flex items-center gap-1 rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-accent hover:bg-accent/20"
+                          title="Futures AI plan"
+                        >
+                          <Rocket className="size-3" />
+                          <span className="hidden sm:inline">Fut</span>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-3 py-12 text-center font-mono text-xs text-muted-foreground">No pairs match these filters.</td></tr>
+                <tr><td colSpan={9} className="px-3 py-12 text-center font-mono text-xs text-muted-foreground">
+                  {favOnly && favCount === 0 ? "No favorites yet — click the ☆ on any row to pin it." : "No pairs match these filters."}
+                </td></tr>
               )}
             </tbody>
           </table>
