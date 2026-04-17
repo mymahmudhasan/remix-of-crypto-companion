@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Send, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Send, Sparkles, Loader2, AlertCircle, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { snapshot, scoreSignal } from "@/lib/indicators";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-interface Msg { role: "user" | "assistant"; content: string }
+interface ToolCall { name: string; args: any }
+interface Msg {
+  role: "user" | "assistant";
+  content: string;
+  tools?: ToolCall[];
+}
 
 interface Props {
   symbol: string;
@@ -15,10 +21,18 @@ interface Props {
 
 const QUICK_PROMPTS = [
   "What's the current setup?",
-  "Should I buy now or wait for a pullback?",
-  "Where would you set the stop and targets?",
-  "Is this overextended?",
+  "Is SOL overbought right now?",
+  "What's the news on BTC?",
+  "How's gas on Ethereum?",
 ];
+
+const TOOL_LABEL: Record<string, string> = {
+  get_price: "📈 Price",
+  get_indicators: "📊 Indicators",
+  get_gas: "⛽ Gas",
+  get_news_sentiment: "📰 News",
+  get_token_security: "🛡 Security",
+};
 
 export function AIAssistant({ symbol, interval, closes }: Props) {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -64,56 +78,27 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
     }
 
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trade-assistant`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      const { data, error: fnError } = await supabase.functions.invoke("trade-assistant", {
+        body: {
+          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          context,
         },
-        body: JSON.stringify({ messages: next, context }),
       });
 
-      if (!resp.ok || !resp.body) {
-        if (resp.status === 429) throw new Error("Rate limit hit. Wait a moment and try again.");
-        if (resp.status === 402) throw new Error("AI credits exhausted. Add credits in workspace settings.");
-        throw new Error(`Request failed (${resp.status})`);
+      if (fnError) {
+        const msg = fnError.message || "Request failed";
+        if (msg.includes("429")) throw new Error("Rate limit hit. Wait a moment and try again.");
+        if (msg.includes("402")) throw new Error("AI credits exhausted. Add credits in workspace settings.");
+        throw new Error(msg);
       }
+      if (data?.error) throw new Error(data.error);
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let acc = "";
-      let streamDone = false;
-
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, nl);
-          textBuffer = textBuffer.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") { streamDone = true; break; }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const c = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (c) {
-              acc += c;
-              setMessages((prev) => prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: acc } : m)));
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
+      const assistantMsg: Msg = {
+        role: "assistant",
+        content: data?.content ?? "(no response)",
+        tools: data?.toolTrace ?? [],
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
     } catch (e: any) {
       setError(e.message || "Something went wrong");
     } finally {
@@ -138,8 +123,8 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
               <Sparkles className="size-5 text-primary" />
             </div>
             <p className="max-w-xs font-mono text-xs leading-relaxed text-muted-foreground">
-              Ask me anything about <span className="text-foreground">{symbol.replace("USDT", "/USDT")}</span>.
-              I see live price, RSI, MACD and EMAs.
+              Ask me about <span className="text-foreground">{symbol.replace("USDT", "/USDT")}</span> or any token.
+              I can fetch live prices, indicators, gas, news & contract security on demand.
             </p>
             <div className="flex flex-wrap justify-center gap-1.5">
               {QUICK_PROMPTS.map((p) => (
@@ -157,7 +142,23 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
 
         <div className="space-y-3">
           {messages.map((m, i) => (
-            <div key={i} className={cn("flex flex-col", m.role === "user" ? "items-end" : "items-start")}>
+            <div key={i} className={cn("flex flex-col gap-1", m.role === "user" ? "items-end" : "items-start")}>
+              {m.role === "assistant" && m.tools && m.tools.length > 0 && (
+                <div className="flex flex-wrap gap-1 px-1">
+                  {m.tools.map((t, idx) => (
+                    <span
+                      key={idx}
+                      title={JSON.stringify(t.args)}
+                      className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary"
+                    >
+                      <Wrench className="size-2.5" />
+                      {TOOL_LABEL[t.name] ?? t.name}
+                      {t.args?.symbol && <span className="text-muted-foreground">· {t.args.symbol}</span>}
+                      {t.args?.chain && <span className="text-muted-foreground">· {t.args.chain}</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div
                 className={cn(
                   "max-w-[90%] rounded-md px-3 py-2 text-sm",
@@ -181,9 +182,9 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
               </div>
             </div>
           ))}
-          {loading && messages[messages.length - 1]?.role === "user" && (
+          {loading && (
             <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" /> thinking…
+              <Loader2 className="size-3 animate-spin" /> looking up live data…
             </div>
           )}
         </div>
@@ -202,7 +203,7 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={`Ask about ${symbol.replace("USDT", "")}…`}
+          placeholder={`Ask about ${symbol.replace("USDT", "")}, gas, news, a contract…`}
           className="flex-1 rounded-md border border-border bg-surface-elevated px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
           disabled={loading}
         />
