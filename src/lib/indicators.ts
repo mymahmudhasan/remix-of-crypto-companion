@@ -18,7 +18,6 @@ export function ema(values: number[], period: number): (number | null)[] {
   for (let i = 0; i < values.length; i++) {
     if (i < period - 1) { out.push(null); continue; }
     if (prev === null) {
-      // seed with SMA
       const seed = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
       prev = seed;
       out.push(seed);
@@ -70,6 +69,70 @@ export function macd(values: number[], fast = 12, slow = 26, signalP = 9) {
   return { macd: macdLine, signal, histogram };
 }
 
+/** Bollinger Bands using SMA + std dev. */
+export function bollinger(values: number[], period = 20, mult = 2) {
+  const mid = sma(values, period);
+  const upper: (number | null)[] = [];
+  const lower: (number | null)[] = [];
+  for (let i = 0; i < values.length; i++) {
+    if (i < period - 1) { upper.push(null); lower.push(null); continue; }
+    const slice = values.slice(i - period + 1, i + 1);
+    const m = mid[i] as number;
+    const variance = slice.reduce((a, b) => a + (b - m) ** 2, 0) / period;
+    const sd = Math.sqrt(variance);
+    upper.push(m + mult * sd);
+    lower.push(m - mult * sd);
+  }
+  return { upper, mid, lower };
+}
+
+/** Average True Range — needs OHLC, but we approximate from closes when only closes are available. */
+export function atrFromOHLC(highs: number[], lows: number[], closes: number[], period = 14): (number | null)[] {
+  const tr: number[] = [0];
+  for (let i = 1; i < closes.length; i++) {
+    tr.push(Math.max(
+      highs[i] - lows[i],
+      Math.abs(highs[i] - closes[i - 1]),
+      Math.abs(lows[i] - closes[i - 1]),
+    ));
+  }
+  // Wilder smoothing
+  const out: (number | null)[] = [];
+  let prev: number | null = null;
+  for (let i = 0; i < tr.length; i++) {
+    if (i < period) { out.push(null); continue; }
+    if (prev === null) {
+      prev = tr.slice(1, period + 1).reduce((a, b) => a + b, 0) / period;
+    } else {
+      prev = (prev * (period - 1) + tr[i]) / period;
+    }
+    out.push(prev);
+  }
+  return out;
+}
+
+/** Stochastic %K (fast). */
+export function stochastic(highs: number[], lows: number[], closes: number[], period = 14, smoothK = 3, smoothD = 3) {
+  const k: (number | null)[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (i < period - 1) { k.push(null); continue; }
+    const hh = Math.max(...highs.slice(i - period + 1, i + 1));
+    const ll = Math.min(...lows.slice(i - period + 1, i + 1));
+    k.push(hh === ll ? 50 : ((closes[i] - ll) / (hh - ll)) * 100);
+  }
+  const kSmoothed = sma(k.map((v) => v ?? 0), smoothK).map((v, i) => (k[i] === null ? null : v));
+  const d = sma(kSmoothed.map((v) => v ?? 0), smoothD).map((v, i) => (kSmoothed[i] === null ? null : v));
+  return { k: kSmoothed, d };
+}
+
+/** Average volume ratio (current bar volume vs N-bar average). */
+export function volumeRatio(volumes: number[], period = 20): number | null {
+  if (volumes.length < period) return null;
+  const recent = volumes.slice(-period);
+  const avg = recent.reduce((a, b) => a + b, 0) / period;
+  return avg > 0 ? volumes[volumes.length - 1] / avg : null;
+}
+
 export interface IndicatorSnapshot {
   price: number;
   rsi14: number | null;
@@ -79,12 +142,35 @@ export interface IndicatorSnapshot {
   macd: number | null;
   macdSignal: number | null;
   macdHist: number | null;
+  bbUpper: number | null;
+  bbMid: number | null;
+  bbLower: number | null;
+  /** Position within Bollinger bands: 0 = lower band, 1 = upper band. */
+  bbPercentB: number | null;
+  atr14: number | null;
+  /** ATR as % of price — volatility gauge. */
+  atrPct: number | null;
+  stochK: number | null;
+  stochD: number | null;
+  volRatio: number | null;
   recentHigh: number;
   recentLow: number;
   changePct: number;
 }
 
-export function snapshot(closes: number[]): IndicatorSnapshot {
+export interface Candle {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export function snapshotFromCandles(candles: Candle[]): IndicatorSnapshot {
+  const closes = candles.map((c) => c.close);
+  const highs = candles.map((c) => c.high);
+  const lows = candles.map((c) => c.low);
+  const vols = candles.map((c) => c.volume);
   const n = closes.length;
   const last = closes[n - 1];
   const e20 = ema(closes, 20)[n - 1];
@@ -92,7 +178,15 @@ export function snapshot(closes: number[]): IndicatorSnapshot {
   const e200 = ema(closes, 200)[n - 1];
   const r = rsi(closes, 14)[n - 1];
   const m = macd(closes);
+  const bb = bollinger(closes, 20, 2);
+  const atr = atrFromOHLC(highs, lows, closes, 14)[n - 1];
+  const stoch = stochastic(highs, lows, closes, 14, 3, 3);
   const window = closes.slice(-50);
+  const upper = bb.upper[n - 1];
+  const lower = bb.lower[n - 1];
+  const pctB = upper !== null && lower !== null && upper > lower
+    ? (last - lower) / (upper - lower)
+    : null;
   return {
     price: last,
     rsi14: r,
@@ -102,10 +196,25 @@ export function snapshot(closes: number[]): IndicatorSnapshot {
     macd: m.macd[n - 1],
     macdSignal: m.signal[n - 1],
     macdHist: m.histogram[n - 1],
+    bbUpper: upper,
+    bbMid: bb.mid[n - 1],
+    bbLower: lower,
+    bbPercentB: pctB,
+    atr14: atr,
+    atrPct: atr !== null ? (atr / last) * 100 : null,
+    stochK: stoch.k[n - 1],
+    stochD: stoch.d[n - 1],
+    volRatio: volumeRatio(vols, 20),
     recentHigh: Math.max(...window),
     recentLow: Math.min(...window),
     changePct: ((last - closes[Math.max(0, n - 50)]) / closes[Math.max(0, n - 50)]) * 100,
   };
+}
+
+/** Backwards-compatible: build a snapshot from closes only (no volume / OHLC-dependent fields). */
+export function snapshot(closes: number[]): IndicatorSnapshot {
+  const fake: Candle[] = closes.map((c) => ({ open: c, high: c, low: c, close: c, volume: 0 }));
+  return snapshotFromCandles(fake);
 }
 
 export type SignalBias = "bull" | "bear" | "neutral";
@@ -144,6 +253,20 @@ export function scoreSignal(s: IndicatorSnapshot): ScoredSignal {
 
   if (s.ema20 && s.price > s.ema20) { score += 8; reasons.push("Price above EMA20"); }
   else if (s.ema20) { score -= 8; reasons.push("Price below EMA20"); }
+
+  if (s.bbPercentB !== null) {
+    if (s.bbPercentB < 0.1) { score += 6; reasons.push("Hugging lower BB (mean-revert long)"); }
+    else if (s.bbPercentB > 0.9) { score -= 6; reasons.push("Hugging upper BB (mean-revert short)"); }
+  }
+
+  if (s.stochK !== null && s.stochD !== null) {
+    if (s.stochK < 20 && s.stochK > s.stochD) { score += 6; reasons.push("Stochastic oversold + cross up"); }
+    else if (s.stochK > 80 && s.stochK < s.stochD) { score -= 6; reasons.push("Stochastic overbought + cross down"); }
+  }
+
+  if (s.volRatio !== null && s.volRatio > 1.5) {
+    reasons.push(`Volume ${s.volRatio.toFixed(2)}× the 20-bar average (confirmation)`);
+  }
 
   score = Math.max(-100, Math.min(100, score));
   const bias: SignalBias = score >= 20 ? "bull" : score <= -20 ? "bear" : "neutral";
