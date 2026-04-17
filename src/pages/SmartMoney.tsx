@@ -14,6 +14,7 @@ import {
 import { SCANNER_UNIVERSE, tickerToRow } from "@/lib/scanner";
 import { useFavorites } from "@/hooks/use-favorites";
 import { CandleChart } from "@/components/CandleChart";
+import { SaveCoachButton, type CoachPayload } from "@/components/SaveCoachButton";
 import { cn } from "@/lib/utils";
 
 const MTF_INTERVALS = ["1h", "4h", "1d"];
@@ -432,7 +433,17 @@ export default function SmartMoney() {
                   <Loader2 className="size-4 animate-spin" /> Coaching the setup…
                 </div>
               )}
-              {coach && <CoachView coach={coach} symbol={selected} onRerun={runCoach} />}
+              {coach && (
+                <CoachView
+                  coach={coach}
+                  symbol={selected}
+                  interval={interval}
+                  mode={mode}
+                  entryPrice={snap?.price ?? 0}
+                  onRerun={runCoach}
+                  getChartEl={() => chartWrapRef.current}
+                />
+              )}
             </div>
           </div>
 
@@ -513,7 +524,17 @@ function FootprintsPanel({
   );
 }
 
-function CoachView({ coach, symbol, onRerun }: { coach: any; symbol: string; onRerun: () => void }) {
+function CoachView({
+  coach, symbol, interval, mode, entryPrice, onRerun, getChartEl,
+}: {
+  coach: CoachPayload;
+  symbol: string;
+  interval: string;
+  mode: "spot" | "futures";
+  entryPrice: number;
+  onRerun: () => void;
+  getChartEl: () => HTMLElement | null;
+}) {
   const verdictMeta: Record<string, { cls: string; label: string }> = {
     GO: { cls: "border-bull bg-bull/10 text-bull", label: "▶ GO" },
     WAIT: { cls: "border-warning bg-warning/10 text-warning", label: "⏸ WAIT" },
@@ -644,14 +665,22 @@ function CoachView({ coach, symbol, onRerun }: { coach: any; symbol: string; onR
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <SaveCoachButton
+          mode={mode}
+          symbol={symbol}
+          interval={interval}
+          entryPrice={entryPrice}
+          coach={coach}
+          getChartEl={getChartEl}
+        />
         <button
           onClick={onRerun}
           className="flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10px] uppercase text-muted-foreground hover:border-primary hover:text-primary"
         >
           <Sparkles className="size-3" /> Re-run coach
         </button>
-        <p className="font-mono text-[10px] text-muted-foreground">⚠ Educational only — not financial advice.</p>
+        <p className="ml-auto font-mono text-[10px] text-muted-foreground">⚠ Educational only — not financial advice.</p>
       </div>
     </div>
   );
