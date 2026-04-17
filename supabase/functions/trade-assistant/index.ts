@@ -413,6 +413,35 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_orderbook_heatmap",
+      description: "Analyze the live order book (depth) for a symbol: total bid vs ask liquidity within ±depthPct of mid, imbalance score, and the top 5 bid/ask 'walls' (largest resting orders that act as support/resistance). Use for 'where's the liquidity?', 'is there a wall above price?', 'show me the heatmap'.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: { type: "string" },
+          depthPct: { type: "number", description: "Window around mid in percent (default 2, max 10)." },
+        },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_liquidations",
+      description: "Get derivatives stress signals from Binance Futures: funding rate (8h & APR), open interest + 24h change, long/short ratio, recent forced-liquidation flow (longs vs shorts wrecked in last hour), and an overall squeeze-risk verdict. Use for 'are longs over-leveraged?', 'short squeeze setup?', 'what's funding on X?', 'liquidation pressure?'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_token_security",
       description: "Run a smart-contract security check via GoPlus: honeypot risk, buy/sell tax, mintable, ownership flags. Use ONLY when the user gives a contract address.",
       parameters: {
@@ -434,6 +463,8 @@ async function runTool(name: string, args: any): Promise<any> {
     case "get_indicators": return await tool_get_indicators(args);
     case "get_gas": return await tool_get_gas(args);
     case "get_news_sentiment": return await tool_get_news_sentiment(args);
+    case "get_orderbook_heatmap": return await tool_get_orderbook_heatmap(args);
+    case "get_liquidations": return await tool_get_liquidations(args);
     case "get_token_security": return await tool_get_token_security(args);
     default: return { error: `Unknown tool ${name}` };
   }
