@@ -253,8 +253,9 @@ function Row({ k, v, cls, bold }: { k: string; v: string; cls?: string; bold?: b
   );
 }
 
-function PlanView({ plan, symbol, positionUsd, currentPrice, side }: {
-  plan: SpotPlan; symbol: string; positionUsd: number; currentPrice: number; side: "long" | "short" | "neutral";
+function PlanView({ plan, symbol, interval, positionUsd, currentPrice, side, getChartEl }: {
+  plan: SpotPlan; symbol: string; interval: string; positionUsd: number; currentPrice: number; side: "long" | "short" | "neutral";
+  getChartEl: () => HTMLElement | null;
 }) {
   const actionMeta: Record<SpotPlan["action"], { cls: string; label: string }> = {
     buy: { cls: "border-bull bg-bull/10 text-bull", label: "▲ BUY" },
@@ -285,6 +286,17 @@ function PlanView({ plan, symbol, positionUsd, currentPrice, side }: {
         <KPI icon={Target} label="Targets" value={plan.targets.map((t) => `$${formatPrice(t)}`).join(" → ")} tone="primary" />
         <KPI icon={DollarSign} label="Position Size" value={`$${positionUsd.toFixed(0)} (risk ${plan.riskPct}%)`} tone="primary" />
       </div>
+
+      <SavePlanButton
+        mode="spot"
+        symbol={symbol}
+        interval={interval}
+        side={side}
+        action={plan.action}
+        entryPrice={currentPrice}
+        plan={plan}
+        getChartEl={getChartEl}
+      />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="panel p-3">
