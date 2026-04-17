@@ -65,14 +65,16 @@ export function shouldAlert(symbol: string, fp: Footprint): boolean {
 
 /** Filter footprints to only the alert-worthy high-weight ones. */
 export function filterAlertWorthy(fps: Footprint[]): Footprint[] {
+  // ⚠️ TEST MODE — thresholds lowered for end-to-end alert verification.
+  // TODO: REVERT before shipping → weight < 4, volume ratio < 3.
   return fps.filter((f) => {
     if (!ALERT_TYPES.includes(f.type)) return false;
-    if (f.weight < 4) return false;
+    if (f.weight < 2) return false; // TEST: was 4
     if (f.type === "volume_spike") {
       // detail format: "{N}× avg volume on a {color} bar"
       const m = /^([\d.]+)×/.exec(f.detail);
       const ratio = m ? parseFloat(m[1]) : 0;
-      if (ratio < 3) return false;
+      if (ratio < 1.2) return false; // TEST: was 3
     }
     return true;
   });
