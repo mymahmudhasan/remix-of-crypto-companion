@@ -344,6 +344,65 @@ function PlanCard({
         </div>
       )}
 
+      {/* Live PnL — only meaningful for open plans (or to show closed_price for resolved ones). */}
+      {row.status === "open" && livePrice !== null && (() => {
+        const entry = row.entry_price ?? (row.entry_low + row.entry_high) / 2;
+        const pnl = computePnlPct(row.side, row.action, entry, livePrice, row.leverage);
+        const tp1 = row.targets?.[0];
+        const isShort = row.side === "short" || row.action === "sell";
+        // Distance to TP1 / Stop as % of the entry→target / entry→stop journey
+        const towardTpPct = tp1
+          ? Math.max(0, Math.min(100, ((isShort ? entry - livePrice : livePrice - entry) /
+              (isShort ? entry - tp1 : tp1 - entry)) * 100))
+          : 0;
+        const towardStopPct = Math.max(0, Math.min(100, ((isShort ? livePrice - entry : entry - livePrice) /
+          (isShort ? row.stop - entry : entry - row.stop)) * 100));
+        return (
+          <div className="flex flex-col gap-1 rounded-md border border-border bg-surface-elevated p-1.5">
+            <div className="flex items-center justify-between font-mono text-[10px]">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <span className="size-1.5 animate-pulse rounded-full bg-bull" /> LIVE
+                <span className="font-bold tabular-nums text-foreground">${formatPrice(livePrice)}</span>
+              </span>
+              <span className={cn(
+                "font-bold tabular-nums",
+                pnl > 0 ? "text-bull" : pnl < 0 ? "text-bear" : "text-muted-foreground"
+              )}>
+                {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+                {row.leverage && row.leverage > 1 ? <span className="ml-1 text-muted-foreground">@{row.leverage}×</span> : null}
+              </span>
+            </div>
+            {/* Twin progress bars: green = toward TP1, red = toward Stop. Whichever fills first wins. */}
+            <div className="flex h-1 gap-px overflow-hidden rounded-sm">
+              <div className="relative h-full flex-1 bg-bull/15">
+                <div className="h-full bg-bull transition-all" style={{ width: `${towardTpPct}%` }} />
+              </div>
+              <div className="relative h-full flex-1 bg-bear/15">
+                <div className="ml-auto h-full bg-bear transition-all" style={{ width: `${towardStopPct}%` }} />
+              </div>
+            </div>
+            <div className="flex justify-between font-mono text-[9px] text-muted-foreground">
+              <span>TP1 {towardTpPct.toFixed(0)}%</span>
+              <span>Stop {towardStopPct.toFixed(0)}%</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {row.status !== "open" && row.closed_price !== null && row.closed_price !== undefined && (
+        <div className="flex justify-between rounded-md border border-border bg-surface-elevated p-1.5 font-mono text-[10px]">
+          <span className="text-muted-foreground">Closed @ <span className="font-bold tabular-nums text-foreground">${formatPrice(row.closed_price)}</span></span>
+          {row.entry_price && (() => {
+            const pnl = computePnlPct(row.side, row.action, row.entry_price, row.closed_price!, row.leverage);
+            return (
+              <span className={cn("font-bold tabular-nums", pnl > 0 ? "text-bull" : pnl < 0 ? "text-bear" : "text-muted-foreground")}>
+                {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+              </span>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Footer */}
       <div className="mt-auto flex items-center gap-1 border-t border-border pt-2">
         <span className="font-mono text-[10px] text-muted-foreground">
