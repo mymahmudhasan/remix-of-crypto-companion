@@ -5,7 +5,7 @@ import {
   Sparkles, ArrowRight, CheckCircle2, XCircle, AlertTriangle, ListChecks, PlayCircle, Star,
   Zap, ShoppingCart, Rocket,
 } from "lucide-react";
-import { fetchKlines, fetch24h, formatPrice, type Kline } from "@/lib/binance";
+import { fetchKlines, fetch24h, formatPrice } from "@/lib/binance";
 import { snapshotFromCandles, scoreSignal } from "@/lib/indicators";
 import {
   detectCandleFootprints, detectFuturesFootprints, footprintBias, fetchOIHistory, fetchFundingRate,
@@ -110,7 +110,7 @@ export default function SmartMoney() {
   useEffect(() => {
     let cancelled = false;
     setDetailLoading(true); setDetailError(null);
-    setCandles([]); setSnap(null); setMtf([]); setFps([]); setFundingRate(null);
+    setSnap(null); setMtf([]); setFps([]); setFundingRate(null);
 
     const load = async () => {
       try {
@@ -125,7 +125,6 @@ export default function SmartMoney() {
         const [oiHistory, funding] = await futuresPs;
         if (cancelled) return;
 
-        setCandles(primary);
         const ps = snapshotFromCandles(primary);
         setSnap(ps);
 
