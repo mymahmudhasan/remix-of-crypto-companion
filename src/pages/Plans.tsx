@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bookmark, Trophy, X, Trash2, Loader2, ArrowUpRight,
-  TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock, Radio,
+  TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock,
 } from "lucide-react";
 import { plansClient, SAVED_PLANS_TABLE } from "@/lib/plans-client";
 import { formatPrice, subscribeMiniTickers } from "@/lib/binance";
