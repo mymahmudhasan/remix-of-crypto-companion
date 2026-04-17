@@ -257,6 +257,7 @@ export default function Plans() {
               <PlanCard
                 key={r.id}
                 row={r}
+                livePrice={livePrices[r.symbol] ?? null}
                 onStatus={setStatus}
                 onDelete={remove}
                 busy={busyId === r.id}
