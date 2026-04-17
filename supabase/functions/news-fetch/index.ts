@@ -1,6 +1,6 @@
 // Aggregates crypto news from public RSS feeds, tags symbols, and scores sentiment.
 // No external libs — RSS is parsed with regex (XML is well-formed for these feeds).
-import { corsHeaders } from "@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 
 const FEEDS: { source: string; url: string }[] = [
   { source: "CoinDesk",       url: "https://www.coindesk.com/arc/outboundfeeds/rss/" },

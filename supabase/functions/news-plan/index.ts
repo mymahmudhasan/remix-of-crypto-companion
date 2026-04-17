@@ -1,6 +1,6 @@
 // News-aware trade plan: combines a news headline with current chart context
 // (price + RSI + recent levels) and produces a directional plan via Lovable AI.
-import { corsHeaders } from "@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
