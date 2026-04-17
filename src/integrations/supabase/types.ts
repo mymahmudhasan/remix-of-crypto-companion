@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           action: string | null
           chart_snapshot: string | null
+          client_id: string
           closed_price: number | null
           conviction: number | null
           created_at: string
@@ -41,6 +42,7 @@ export type Database = {
         Insert: {
           action?: string | null
           chart_snapshot?: string | null
+          client_id?: string
           closed_price?: number | null
           conviction?: number | null
           created_at?: string
@@ -64,6 +66,7 @@ export type Database = {
         Update: {
           action?: string | null
           chart_snapshot?: string | null
+          client_id?: string
           closed_price?: number | null
           conviction?: number | null
           created_at?: string
