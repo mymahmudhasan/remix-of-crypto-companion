@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowDown, ArrowUp, RefreshCw, Search, Sparkles } from "lucide-react";
-import { fetch24h, formatCompact, formatPrice } from "@/lib/binance";
-import { tickerToRow, sortRows, SCANNER_UNIVERSE, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
+import { fetch24h, fetchAllUsdtSymbols, formatCompact, formatPrice } from "@/lib/binance";
+import { tickerToRow, sortRows, type ScannerRow, type SortKey, type SortDir } from "@/lib/scanner";
 import { cn } from "@/lib/utils";
 
 const SPREADS = [
@@ -28,8 +28,12 @@ export default function Scanner() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const data = await fetch24h(SCANNER_UNIVERSE);
-      const r = data.map((t) => tickerToRow(t)).filter(Boolean) as ScannerRow[];
+      // Fetch ALL Binance USDT pairs (spot + web3 tokens — anything trading on Binance)
+      const symbols = await fetchAllUsdtSymbols();
+      const data = await fetch24h(symbols);
+      const r = data
+        .map((t) => tickerToRow(t))
+        .filter((x): x is ScannerRow => !!x && x.quoteVolume > 10_000); // drop dust pairs
       setRows(r);
       setUpdatedAt(new Date());
     } catch (e) {
