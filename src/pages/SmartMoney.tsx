@@ -15,6 +15,7 @@ import { SCANNER_UNIVERSE, tickerToRow } from "@/lib/scanner";
 import { useFavorites } from "@/hooks/use-favorites";
 import { CandleChart } from "@/components/CandleChart";
 import { SaveCoachButton, type CoachPayload } from "@/components/SaveCoachButton";
+import { NewsPanel } from "@/components/NewsPanel";
 import { cn } from "@/lib/utils";
 
 const MTF_INTERVALS = ["1h", "4h", "1d"];
@@ -447,8 +448,13 @@ export default function SmartMoney() {
             </div>
           </div>
 
-          {/* Right: footprints list */}
-          <FootprintsPanel fps={fps} loading={detailLoading} error={detailError} fundingRate={fundingRate} mode={mode} />
+          {/* Right: footprints list + news */}
+          <div className="flex min-h-0 flex-col gap-2 overflow-hidden">
+            <div className="min-h-0 flex-1">
+              <FootprintsPanel fps={fps} loading={detailLoading} error={detailError} fundingRate={fundingRate} mode={mode} />
+            </div>
+            <NewsPanel symbol={selected} mode={mode} interval={interval} />
+          </div>
         </div>
       </div>
     </div>
