@@ -249,6 +249,17 @@ export default function Futures() {
                 </>
               )}
 
+              <SavePlanButton
+                mode="futures"
+                symbol={symbol}
+                interval={interval}
+                side={plan.side}
+                leverage={plan.leverage}
+                entryPrice={snap.price}
+                plan={plan}
+                getChartEl={() => chartWrapRef.current}
+              />
+
               <div className="grid gap-3 lg:grid-cols-2">
                 <div className="panel p-3">
                   <h3 className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-bull">Setup</h3>
