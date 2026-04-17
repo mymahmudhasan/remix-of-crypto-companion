@@ -11,6 +11,7 @@ import Futures from "./pages/Futures.tsx";
 import PumpDump from "./pages/PumpDump.tsx";
 import Unlocks from "./pages/Unlocks.tsx";
 import Plans from "./pages/Plans.tsx";
+import SmartMoney from "./pages/SmartMoney.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/pump-dump" element={<PumpDump />} />
             <Route path="/unlocks" element={<Unlocks />} />
             <Route path="/plans" element={<Plans />} />
+            <Route path="/smart-money" element={<SmartMoney />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
