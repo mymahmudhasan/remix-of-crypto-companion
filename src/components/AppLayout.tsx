@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Activity, Wifi, LayoutDashboard, Radar, ShoppingCart, Rocket, Flame, Lock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { TickerBar } from "@/components/TickerBar";
+import { FavoritesStrip } from "@/components/FavoritesStrip";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -59,6 +60,7 @@ export function AppLayout() {
       </nav>
 
       <TickerBar />
+      <FavoritesStrip />
 
       <main className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
