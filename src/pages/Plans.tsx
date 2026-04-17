@@ -23,6 +23,9 @@ function checkAutoResolve(
   price: number
 ): "won" | "lost" | null {
   if (row.status !== "open") return null;
+  // Coach setups stamp action with "GO" / "WAIT" / "SKIP". Only directional setups
+  // (long/short) with a non-neutral side should auto-resolve.
+  if (row.side !== "long" && row.side !== "short") return null;
   const isShort = row.side === "short" || row.action === "sell";
   const tp1 = row.targets?.[0];
   if (isShort) {
