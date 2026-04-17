@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { Activity, Wifi, LayoutDashboard, Radar, ShoppingCart, Rocket, Flame, Lock } from "lucide-react";
+import { Activity, Wifi, LayoutDashboard, Radar, ShoppingCart, Rocket, Flame, Lock, Bookmark } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { TickerBar } from "@/components/TickerBar";
 import { FavoritesStrip } from "@/components/FavoritesStrip";
@@ -12,6 +12,7 @@ const TABS = [
   { to: "/futures", label: "Futures", icon: Rocket },
   { to: "/pump-dump", label: "Pump/Dump", icon: Flame },
   { to: "/unlocks", label: "Unlocks", icon: Lock },
+  { to: "/plans", label: "Journal", icon: Bookmark },
 ];
 
 export function AppLayout() {
