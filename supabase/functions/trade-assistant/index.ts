@@ -166,6 +166,150 @@ async function tool_get_news_sentiment(args: { symbol?: string }) {
   }
 }
 
+async function tool_get_orderbook_heatmap(args: { symbol: string; depthPct?: number }) {
+  const sym = pairOf(args.symbol);
+  const depthPct = Math.max(0.1, Math.min(args.depthPct ?? 2, 10)); // % around mid price
+  try {
+    const r = await fetch(`${BINANCE}/api/v3/depth?symbol=${sym}&limit=1000`);
+    if (!r.ok) return { error: `Depth ${r.status} for ${sym}` };
+    const d = await r.json();
+    const bids: [string, string][] = d.bids ?? [];
+    const asks: [string, string][] = d.asks ?? [];
+    if (!bids.length || !asks.length) return { error: "Empty book" };
+    const bestBid = parseFloat(bids[0][0]);
+    const bestAsk = parseFloat(asks[0][0]);
+    const mid = (bestBid + bestAsk) / 2;
+    const lo = mid * (1 - depthPct / 100);
+    const hi = mid * (1 + depthPct / 100);
+
+    type Lvl = { price: number; qty: number; notional: number };
+    const bidLvls: Lvl[] = bids
+      .map(([p, q]) => ({ price: parseFloat(p), qty: parseFloat(q), notional: parseFloat(p) * parseFloat(q) }))
+      .filter((l) => l.price >= lo);
+    const askLvls: Lvl[] = asks
+      .map(([p, q]) => ({ price: parseFloat(p), qty: parseFloat(q), notional: parseFloat(p) * parseFloat(q) }))
+      .filter((l) => l.price <= hi);
+
+    const bidNotional = bidLvls.reduce((s, l) => s + l.notional, 0);
+    const askNotional = askLvls.reduce((s, l) => s + l.notional, 0);
+    const imbalance = bidNotional + askNotional > 0
+      ? (bidNotional - askNotional) / (bidNotional + askNotional)
+      : 0;
+
+    // Top 5 liquidity "walls" each side by notional
+    const topBidWalls = [...bidLvls].sort((a, b) => b.notional - a.notional).slice(0, 5)
+      .map((l) => ({ price: l.price, notionalUSD: Math.round(l.notional), distancePct: +(((l.price - mid) / mid) * 100).toFixed(2) }));
+    const topAskWalls = [...askLvls].sort((a, b) => b.notional - a.notional).slice(0, 5)
+      .map((l) => ({ price: l.price, notionalUSD: Math.round(l.notional), distancePct: +(((l.price - mid) / mid) * 100).toFixed(2) }));
+
+    const verdict = imbalance > 0.2 ? "bid-heavy (support)"
+      : imbalance < -0.2 ? "ask-heavy (resistance)"
+      : "balanced";
+
+    return {
+      symbol: sym,
+      mid,
+      spreadBps: +(((bestAsk - bestBid) / mid) * 10000).toFixed(2),
+      windowPct: depthPct,
+      bidLiquidityUSD: Math.round(bidNotional),
+      askLiquidityUSD: Math.round(askNotional),
+      imbalance: +imbalance.toFixed(3),
+      verdict,
+      topBidWalls,
+      topAskWalls,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Heatmap fetch failed" };
+  }
+}
+
+async function tool_get_liquidations(args: { symbol: string }) {
+  const sym = pairOf(args.symbol);
+  const FAPI = "https://fapi.binance.com";
+  try {
+    // Funding, open interest, long/short ratio, recent forced liquidation orders
+    const [premRes, oiRes, lsRes, liqRes, oiHistRes] = await Promise.all([
+      fetch(`${FAPI}/fapi/v1/premiumIndex?symbol=${sym}`),
+      fetch(`${FAPI}/fapi/v1/openInterest?symbol=${sym}`),
+      fetch(`${FAPI}/futures/data/globalLongShortAccountRatio?symbol=${sym}&period=1h&limit=1`),
+      fetch(`${FAPI}/fapi/v1/forceOrders?symbol=${sym}&limit=100`).catch(() => null),
+      fetch(`${FAPI}/futures/data/openInterestHist?symbol=${sym}&period=1h&limit=24`),
+    ]);
+
+    if (!premRes.ok) return { error: `No futures market for ${sym} (perp may not exist)` };
+
+    const prem = await premRes.json();
+    const oi = oiRes.ok ? await oiRes.json() : null;
+    const ls = lsRes.ok ? await lsRes.json() : [];
+    const oiHist = oiHistRes.ok ? await oiHistRes.json() : [];
+
+    const markPrice = parseFloat(prem.markPrice);
+    const fundingRate = parseFloat(prem.lastFundingRate);
+    const fundingPct8h = +(fundingRate * 100).toFixed(4);
+    const fundingAPR = +(fundingRate * 3 * 365 * 100).toFixed(2);
+
+    const oiContracts = oi ? parseFloat(oi.openInterest) : null;
+    const oiNotional = oiContracts !== null ? Math.round(oiContracts * markPrice) : null;
+
+    // OI 24h change
+    let oiChange24hPct: number | null = null;
+    if (Array.isArray(oiHist) && oiHist.length >= 2) {
+      const first = parseFloat(oiHist[0].sumOpenInterest);
+      const last = parseFloat(oiHist[oiHist.length - 1].sumOpenInterest);
+      if (first > 0) oiChange24hPct = +(((last - first) / first) * 100).toFixed(2);
+    }
+
+    const lsRatio = Array.isArray(ls) && ls[0] ? +parseFloat(ls[0].longShortRatio).toFixed(2) : null;
+
+    // Recent liquidations (forceOrders requires auth on some endpoints; treat as best-effort)
+    let recentLiq: any = { available: false };
+    if (liqRes && liqRes.ok) {
+      const orders: any[] = await liqRes.json();
+      if (Array.isArray(orders) && orders.length) {
+        let longLiqUSD = 0, shortLiqUSD = 0;
+        const cutoff = Date.now() - 60 * 60 * 1000;
+        for (const o of orders) {
+          if (o.time < cutoff) continue;
+          const notional = parseFloat(o.price) * parseFloat(o.origQty);
+          if (o.side === "SELL") longLiqUSD += notional; // long liquidated = forced sell
+          else shortLiqUSD += notional;
+        }
+        recentLiq = {
+          available: true,
+          windowMinutes: 60,
+          longLiqUSD: Math.round(longLiqUSD),
+          shortLiqUSD: Math.round(shortLiqUSD),
+          dominantSide: longLiqUSD > shortLiqUSD ? "longs getting wrecked" : "shorts getting squeezed",
+        };
+      }
+    }
+
+    // Squeeze / pressure verdict
+    const fundingSignal = fundingPct8h > 0.05 ? "longs paying heavily (over-leveraged longs)"
+      : fundingPct8h < -0.05 ? "shorts paying heavily (over-leveraged shorts)"
+      : "neutral funding";
+    const oiSignal = oiChange24hPct === null ? "n/a"
+      : oiChange24hPct > 10 ? "OI rising sharply (new positions building)"
+      : oiChange24hPct < -10 ? "OI dropping sharply (deleveraging)"
+      : "OI stable";
+    let squeezeRisk = "low";
+    if (Math.abs(fundingPct8h) > 0.05 && (oiChange24hPct ?? 0) > 5) squeezeRisk = "elevated";
+    if (Math.abs(fundingPct8h) > 0.1) squeezeRisk = "high";
+
+    return {
+      symbol: sym,
+      markPrice,
+      funding: { rate8h: fundingPct8h, apr: fundingAPR, signal: fundingSignal, unit: "%" },
+      openInterest: { contracts: oiContracts, notionalUSD: oiNotional, change24hPct: oiChange24hPct, signal: oiSignal },
+      longShortRatio: lsRatio,
+      recentLiquidations: recentLiq,
+      squeezeRisk,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Liquidation/derivs fetch failed" };
+  }
+}
+
 async function tool_get_token_security(args: { contractAddress: string; chain?: string }) {
   const chainId = (args.chain ?? "ethereum").toLowerCase();
   const idMap: Record<string, string> = {
@@ -269,6 +413,35 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_orderbook_heatmap",
+      description: "Analyze the live order book (depth) for a symbol: total bid vs ask liquidity within ±depthPct of mid, imbalance score, and the top 5 bid/ask 'walls' (largest resting orders that act as support/resistance). Use for 'where's the liquidity?', 'is there a wall above price?', 'show me the heatmap'.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: { type: "string" },
+          depthPct: { type: "number", description: "Window around mid in percent (default 2, max 10)." },
+        },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_liquidations",
+      description: "Get derivatives stress signals from Binance Futures: funding rate (8h & APR), open interest + 24h change, long/short ratio, recent forced-liquidation flow (longs vs shorts wrecked in last hour), and an overall squeeze-risk verdict. Use for 'are longs over-leveraged?', 'short squeeze setup?', 'what's funding on X?', 'liquidation pressure?'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_token_security",
       description: "Run a smart-contract security check via GoPlus: honeypot risk, buy/sell tax, mintable, ownership flags. Use ONLY when the user gives a contract address.",
       parameters: {
@@ -290,6 +463,8 @@ async function runTool(name: string, args: any): Promise<any> {
     case "get_indicators": return await tool_get_indicators(args);
     case "get_gas": return await tool_get_gas(args);
     case "get_news_sentiment": return await tool_get_news_sentiment(args);
+    case "get_orderbook_heatmap": return await tool_get_orderbook_heatmap(args);
+    case "get_liquidations": return await tool_get_liquidations(args);
     case "get_token_security": return await tool_get_token_security(args);
     default: return { error: `Unknown tool ${name}` };
   }
@@ -332,9 +507,13 @@ TOOLS — call them whenever you need fresh data:
 - get_indicators for RSI / EMA / MACD verdict (overbought, trend).
 - get_gas for ETH/L2 gas in gwei.
 - get_news_sentiment for headlines + bull/bear bias.
+- get_orderbook_heatmap for liquidity walls, bid/ask imbalance, and key support/resistance from resting orders.
+- get_liquidations for funding rate, open interest, long/short ratio, recent liquidations and squeeze risk.
 - get_token_security ONLY when given a 0x contract address.
 
-You can chain tool calls. Prefer fewer (1-3) targeted calls over many. After tools return, synthesize into a final answer that quotes the specific numbers.${ctxText}`;
+When the user asks for analysis, a setup, or "should I long/short X" — combine indicators + heatmap + liquidations to assess: trend (indicators), key levels (heatmap walls), and positioning risk (funding/OI/liquidations). Cite the actual numbers (e.g. "bid wall at $X worth $Y", "funding 0.08%/8h => longs over-leveraged").
+
+You can chain tool calls. Prefer fewer (1-4) targeted calls over many. After tools return, synthesize into a final answer that quotes the specific numbers.${ctxText}`;
 
     const conversation: Msg[] = [
       { role: "system", content: system },
