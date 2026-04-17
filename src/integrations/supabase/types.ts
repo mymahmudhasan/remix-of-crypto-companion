@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      saved_plans: {
+        Row: {
+          action: string | null
+          chart_snapshot: string | null
+          closed_price: number | null
+          conviction: number | null
+          created_at: string
+          entry_high: number
+          entry_low: number
+          entry_price: number | null
+          id: string
+          interval: string
+          leverage: number | null
+          mode: string
+          notes: string | null
+          plan: Json
+          risk_pct: number | null
+          side: string
+          status: string
+          stop: number
+          symbol: string
+          targets: number[]
+          updated_at: string
+        }
+        Insert: {
+          action?: string | null
+          chart_snapshot?: string | null
+          closed_price?: number | null
+          conviction?: number | null
+          created_at?: string
+          entry_high: number
+          entry_low: number
+          entry_price?: number | null
+          id?: string
+          interval: string
+          leverage?: number | null
+          mode: string
+          notes?: string | null
+          plan: Json
+          risk_pct?: number | null
+          side: string
+          status?: string
+          stop: number
+          symbol: string
+          targets?: number[]
+          updated_at?: string
+        }
+        Update: {
+          action?: string | null
+          chart_snapshot?: string | null
+          closed_price?: number | null
+          conviction?: number | null
+          created_at?: string
+          entry_high?: number
+          entry_low?: number
+          entry_price?: number | null
+          id?: string
+          interval?: string
+          leverage?: number | null
+          mode?: string
+          notes?: string | null
+          plan?: Json
+          risk_pct?: number | null
+          side?: string
+          status?: string
+          stop?: number
+          symbol?: string
+          targets?: number[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
