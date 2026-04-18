@@ -747,6 +747,61 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_cvd",
+      description: "Cumulative Volume Delta from Binance aggregated trades — measures aggressive buyers vs aggressive sellers and detects price/CVD divergence (e.g. price up but selling = fake rally). Use for 'is this rally real?', 'are buyers actually stepping in?', 'CVD on X', 'price/volume divergence'.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: { type: "string" },
+          interval: { type: "string", enum: ["15m", "1h", "4h", "1d"], description: "Window for the last/prev delta comparison. Default 1h." },
+        },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_funding_skew",
+      description: "Aggregate perpetual funding rates across Binance, Bybit, and OKX, compute average + dispersion, and verdict whether the market is in long-squeeze or short-squeeze danger zone. Use for 'funding on X', 'is the market crowded long?', 'short squeeze setup?', 'sentiment skew'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_liquidation_heatmap",
+      description: "Estimated liquidation level CLUSTERS (magnetic liquidity) above and below price by leverage tier (5×/10×/25×/50×/100×) — shows where leveraged stops sit and which side has the bigger magnet. Auto-uses Coinglass aggregated heatmap if COINGLASS_API_KEY is configured, else free derivation from Binance OI. Use for 'where will price magnet to?', 'liquidation heatmap', 'where are the stops?', 'liquidity above/below'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_exchange_netflow",
+      description: "24h whale-tx proxy of exchange netflow for BTC or ETH — net inflow = sell pressure, net outflow = accumulation/cold-storage. Free proxy via mempool.space (BTC) and Etherscan Binance hot wallet (ETH). Other tokens not supported without a paid CryptoQuant/Glassnode key. Use for 'are whales depositing X?', 'exchange netflow', 'is supply leaving exchanges?'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_token_security",
       description: "Run a smart-contract security check via GoPlus: honeypot risk, buy/sell tax, mintable, ownership flags. Use ONLY when the user gives a contract address.",
       parameters: {
