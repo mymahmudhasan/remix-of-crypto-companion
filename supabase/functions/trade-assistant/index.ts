@@ -770,6 +770,10 @@ async function runTool(name: string, args: any): Promise<any> {
     case "get_news_sentiment": return await tool_get_news_sentiment(args);
     case "get_orderbook_heatmap": return await tool_get_orderbook_heatmap(args);
     case "get_liquidations": return await tool_get_liquidations(args);
+    case "get_cvd": return await tool_get_cvd(args);
+    case "get_funding_skew": return await tool_get_funding_skew(args);
+    case "get_liquidation_heatmap": return await tool_get_liquidation_heatmap(args);
+    case "get_exchange_netflow": return await tool_get_exchange_netflow(args);
     case "get_token_security": return await tool_get_token_security(args);
     default: return { error: `Unknown tool ${name}` };
   }
