@@ -896,8 +896,8 @@ You can chain tool calls. Prefer fewer (1-4) targeted calls over many. After too
     const toolTrace: { name: string; args: any }[] = [];
     let finalContent = "";
 
-    // Tool-call loop (max 4 rounds to bound cost)
-    for (let round = 0; round < 4; round++) {
+    // Tool-call loop (max 6 rounds to bound cost)
+    for (let round = 0; round < 6; round++) {
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
