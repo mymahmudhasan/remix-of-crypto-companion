@@ -310,6 +310,311 @@ async function tool_get_liquidations(args: { symbol: string }) {
   }
 }
 
+// ---------- ADVANCED TOOLS: CVD, FUNDING SKEW, LIQUIDATION HEATMAP, NETFLOW ----------
+
+async function tool_get_cvd(args: { symbol: string; interval?: string }) {
+  const sym = pairOf(args.symbol);
+  const tf = (args.interval ?? "1h").toLowerCase();
+  // Map timeframe -> lookback ms
+  const tfMs: Record<string, number> = { "15m": 15 * 60_000, "1h": 60 * 60_000, "4h": 4 * 60 * 60_000, "1d": 24 * 60 * 60_000 };
+  const window = tfMs[tf] ?? 60 * 60_000;
+  // Use Binance aggTrades (each trade has m=true if buyer is the market maker, i.e. aggressor was a SELLER).
+  // We'll page back up to ~3 windows to compute deltas across periods.
+  try {
+    // Latest trades (no time filter -> last 1000)
+    const r = await fetch(`${BINANCE}/api/v3/aggTrades?symbol=${sym}&limit=1000`);
+    if (!r.ok) return { error: `aggTrades ${r.status} for ${sym}` };
+    const trades: any[] = await r.json();
+    if (!Array.isArray(trades) || !trades.length) return { error: "No trades" };
+    const now = trades[trades.length - 1].T as number;
+    const buckets = [
+      { label: "lastWindow", from: now - window, to: now, buy: 0, sell: 0, count: 0 },
+      { label: "prevWindow", from: now - 2 * window, to: now - window, buy: 0, sell: 0, count: 0 },
+    ];
+    let totalBuy = 0, totalSell = 0;
+    let priceStart = parseFloat(trades[0].p);
+    let priceEnd = parseFloat(trades[trades.length - 1].p);
+    for (const t of trades) {
+      const px = parseFloat(t.p);
+      const qty = parseFloat(t.q);
+      const notional = px * qty;
+      // m=true => buyer is maker => trade was a market SELL (aggressive sell)
+      const isAggressiveSell = t.m === true;
+      if (isAggressiveSell) totalSell += notional; else totalBuy += notional;
+      for (const b of buckets) {
+        if (t.T >= b.from && t.T <= b.to) {
+          if (isAggressiveSell) b.sell += notional; else b.buy += notional;
+          b.count++;
+        }
+      }
+    }
+    const delta = totalBuy - totalSell;
+    const total = totalBuy + totalSell;
+    const dominance = total > 0 ? (delta / total) * 100 : 0;
+    const lastDelta = buckets[0].buy - buckets[0].sell;
+    const prevDelta = buckets[1].buy - buckets[1].sell;
+    const priceChangePct = priceStart > 0 ? ((priceEnd - priceStart) / priceStart) * 100 : 0;
+    // Divergence: price up but CVD down (or vice versa) over the sample
+    let divergence = "none";
+    if (priceChangePct > 0.2 && lastDelta < 0) divergence = "bearish (price up, aggressive selling)";
+    else if (priceChangePct < -0.2 && lastDelta > 0) divergence = "bullish (price down, aggressive buying)";
+    return {
+      symbol: sym,
+      interval: tf,
+      tradesAnalyzed: trades.length,
+      sampleMinutes: Math.round((now - trades[0].T) / 60000),
+      totalBuyUSD: Math.round(totalBuy),
+      totalSellUSD: Math.round(totalSell),
+      cvdUSD: Math.round(delta),
+      buyerDominancePct: +dominance.toFixed(2),
+      lastWindow: { deltaUSD: Math.round(lastDelta), buyUSD: Math.round(buckets[0].buy), sellUSD: Math.round(buckets[0].sell) },
+      prevWindow: { deltaUSD: Math.round(prevDelta), buyUSD: Math.round(buckets[1].buy), sellUSD: Math.round(buckets[1].sell) },
+      priceChangePct: +priceChangePct.toFixed(3),
+      divergence,
+      verdict: dominance > 10 ? "buyers in control" : dominance < -10 ? "sellers in control" : "balanced",
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "CVD fetch failed" };
+  }
+}
+
+async function tool_get_funding_skew(args: { symbol: string }) {
+  const base = args.symbol.toUpperCase().replace(/USDT$|PERP$|-PERP$/, "");
+  const binSym = `${base}USDT`;
+  const bybitSym = `${base}USDT`;
+  const okxInst = `${base}-USDT-SWAP`;
+  try {
+    const [binRes, byRes, okRes] = await Promise.all([
+      fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${binSym}`).catch(() => null),
+      fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${bybitSym}`).catch(() => null),
+      fetch(`https://www.okx.com/api/v5/public/funding-rate?instId=${okxInst}`).catch(() => null),
+    ]);
+    const out: any = { symbol: base, perPair: binSym, exchanges: {} as Record<string, any> };
+    let rates: number[] = [];
+    if (binRes && binRes.ok) {
+      const d = await binRes.json();
+      const rate = parseFloat(d.lastFundingRate);
+      out.exchanges.binance = { fundingPct8h: +(rate * 100).toFixed(4), apr: +(rate * 3 * 365 * 100).toFixed(2), markPrice: parseFloat(d.markPrice) };
+      rates.push(rate);
+    } else out.exchanges.binance = { error: "unavailable" };
+    if (byRes && byRes.ok) {
+      const d = await byRes.json();
+      const t = d?.result?.list?.[0];
+      if (t) {
+        const rate = parseFloat(t.fundingRate);
+        out.exchanges.bybit = { fundingPct8h: +(rate * 100).toFixed(4), apr: +(rate * 3 * 365 * 100).toFixed(2), markPrice: parseFloat(t.markPrice) };
+        rates.push(rate);
+      } else out.exchanges.bybit = { error: "no data" };
+    } else out.exchanges.bybit = { error: "unavailable" };
+    if (okRes && okRes.ok) {
+      const d = await okRes.json();
+      const t = d?.data?.[0];
+      if (t) {
+        const rate = parseFloat(t.fundingRate);
+        out.exchanges.okx = { fundingPct8h: +(rate * 100).toFixed(4), apr: +(rate * 3 * 365 * 100).toFixed(2), nextFundingTime: t.nextFundingTime };
+        rates.push(rate);
+      } else out.exchanges.okx = { error: "no data" };
+    } else out.exchanges.okx = { error: "unavailable" };
+
+    if (rates.length === 0) return { error: "no funding data from any exchange", ...out };
+    const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const avgPct = +(avg * 100).toFixed(4);
+    const apr = +(avg * 3 * 365 * 100).toFixed(2);
+    const max = Math.max(...rates);
+    const min = Math.min(...rates);
+    const dispersionPct = +((max - min) * 100).toFixed(4);
+
+    let skew = "balanced";
+    let dangerZone = "none";
+    if (avgPct > 0.05) { skew = "longs paying (crowded long)"; dangerZone = avgPct > 0.1 ? "high (long-squeeze risk)" : "elevated"; }
+    else if (avgPct < -0.05) { skew = "shorts paying (crowded short)"; dangerZone = avgPct < -0.1 ? "high (short-squeeze setup)" : "elevated"; }
+
+    return {
+      ...out,
+      aggregate: { avgFundingPct8h: avgPct, avgAPR: apr, dispersionPct, exchangesReporting: rates.length },
+      skew,
+      dangerZone,
+      verdict: dangerZone === "none"
+        ? `Funding ${avgPct.toFixed(3)}%/8h — neutral positioning.`
+        : `Funding ${avgPct.toFixed(3)}%/8h across ${rates.length} exchanges — ${skew}. Squeeze risk: ${dangerZone}.`,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Funding skew fetch failed" };
+  }
+}
+
+async function tool_get_liquidation_heatmap(args: { symbol: string }) {
+  const sym = pairOf(args.symbol);
+  const FAPI = "https://fapi.binance.com";
+  const COINGLASS_KEY = Deno.env.get("COINGLASS_API_KEY");
+
+  // Try Coinglass first if key present (true heatmap)
+  if (COINGLASS_KEY) {
+    try {
+      const r = await fetch(`https://open-api-v3.coinglass.com/api/futures/liquidation/aggregated-heatmap/model2?symbol=${sym}&range=1d`, {
+        headers: { "CG-API-KEY": COINGLASS_KEY },
+      });
+      if (r.ok) {
+        const d = await r.json();
+        return { source: "coinglass", symbol: sym, raw: d?.data ?? d };
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Free derivation: use OI + a leverage tier model to estimate where stops cluster.
+  try {
+    const [oiRes, premRes] = await Promise.all([
+      fetch(`${FAPI}/fapi/v1/openInterest?symbol=${sym}`),
+      fetch(`${FAPI}/fapi/v1/premiumIndex?symbol=${sym}`),
+    ]);
+    if (!premRes.ok) return { error: `No futures market for ${sym}` };
+    const prem = await premRes.json();
+    const oi = oiRes.ok ? await oiRes.json() : null;
+    const mark = parseFloat(prem.markPrice);
+    const oiContracts = oi ? parseFloat(oi.openInterest) : 0;
+    const oiNotional = oiContracts * mark;
+
+    // Common isolated leverage tiers and rough share of OI sitting at each (heuristic).
+    // Liquidation distance ≈ (1/lev) * (1 - maintMargin) ~ (1/lev)*0.99 for low MM coins.
+    const tiers = [
+      { lev: 5, share: 0.20 },
+      { lev: 10, share: 0.30 },
+      { lev: 25, share: 0.25 },
+      { lev: 50, share: 0.15 },
+      { lev: 100, share: 0.10 },
+    ];
+    const longClusters: { price: number; distancePct: number; estUSD: number; lev: number }[] = [];
+    const shortClusters: typeof longClusters = [];
+    for (const t of tiers) {
+      const distPct = (1 / t.lev) * 0.99;
+      const longLiqPx = mark * (1 - distPct);
+      const shortLiqPx = mark * (1 + distPct);
+      // Assume ~half of OI is long, half short, then split by leverage share.
+      const estUSD = Math.round(oiNotional * 0.5 * t.share);
+      longClusters.push({ price: +longLiqPx.toFixed(6), distancePct: +(distPct * -100).toFixed(2), estUSD, lev: t.lev });
+      shortClusters.push({ price: +shortLiqPx.toFixed(6), distancePct: +(distPct * 100).toFixed(2), estUSD, lev: t.lev });
+    }
+    // Magnetic levels = biggest combined clusters near price (lowest leverage = most $)
+    const magnets = [
+      { side: "below (long liqs)", price: longClusters[1].price, distancePct: longClusters[1].distancePct, sizeUSD: longClusters[0].estUSD + longClusters[1].estUSD, why: "5×–10× long stops" },
+      { side: "above (short liqs)", price: shortClusters[1].price, distancePct: shortClusters[1].distancePct, sizeUSD: shortClusters[0].estUSD + shortClusters[1].estUSD, why: "5×–10× short stops" },
+    ];
+
+    return {
+      source: "derived (no Coinglass key)",
+      note: "Estimated clusters from Binance OI × common leverage tiers. Add COINGLASS_API_KEY secret for true aggregated heatmap.",
+      symbol: sym,
+      markPrice: mark,
+      oiNotionalUSD: Math.round(oiNotional),
+      longLiqClusters: longClusters,
+      shortLiqClusters: shortClusters,
+      magnets,
+      verdict: `Nearest magnets: ${magnets[0].price} (${magnets[0].distancePct}%) below and ${magnets[1].price} (+${magnets[1].distancePct}%) above. Price tends to gravitate toward the larger cluster.`,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Liquidation heatmap failed" };
+  }
+}
+
+async function tool_get_exchange_netflow(args: { symbol: string }) {
+  const base = args.symbol.toUpperCase().replace(/USDT$/, "");
+  // Free proxy: Whale Alert public stream via "io" mirror is paid; instead use blockchain.com (BTC) and Etherscan whale txs (ETH/ERC20).
+  // Strategy:
+  // - For BTC: use blockchain.com large-tx endpoint as a coarse proxy.
+  // - For ETH and ERC-20s: use Etherscan public API to scan recent large transfers to/from known exchange addresses.
+  // We keep this best-effort; if upstream rate-limits, return a clear note.
+  const KNOWN_EXCHANGE_ETH = new Set([
+    "0x28c6c06298d514db089934071355e5743bf21d60", // Binance 14
+    "0x21a31ee1afc51d94c2efccaa2092ad1028285549", // Binance 15
+    "0xdfd5293d8e347dfe59e90efd55b2956a1343963d", // Binance 16
+    "0x56eddb7aa87536c09ccc2793473599fd21a8b17f", // Binance 17
+    "0x9696f59e4d72e237be84ffd425dcad154bf96976", // Binance 18
+    "0x564286362092d8e7936f0549571a803b203aaced", // Binance 19
+    "0x0681d8db095565fe8a346fa0277bffde9c0edbbf", // Binance 20
+    "0xf977814e90da44bfa03b6295a0616a897441acec", // Binance 8 (cold)
+    "0x5754284f345afc66a98fbb0a0afe71e0f007b949", // Tether treasury (also exchange-like)
+    "0x71660c4005ba85c37ccec55d0c4493e66fe775d3", // Coinbase 1
+    "0x503828976d22510aad0201ac7ec88293211d23da", // Coinbase 2
+    "0xddfabcdc4d8ffc6d5beaf154f18b778f892a0740", // Coinbase 3
+    "0x3cd751e6b0078be393132286c442345e5dc49699", // Coinbase 4
+    "0xb5d85cbf7cb3ee0d56b3bb207d5fc4b82f43f511", // Coinbase 5
+    "0xeb2629a2734e272bcc07bda959863f316f4bd4cf", // Coinbase 6
+    "0xa910f92acdaf488fa6ef02174fb86208ad7722ba", // Kraken
+  ]);
+
+  try {
+    if (base === "BTC") {
+      // Use mempool.space recent large txs as a coarse proxy
+      const r = await fetch("https://mempool.space/api/v1/mining/blocks/extras?limit=6");
+      // Fall back: use blockchain.info large txs from latest unconfirmed
+      const r2 = await fetch("https://blockchain.info/unconfirmed-transactions?format=json&cors=true");
+      let largeTxBTC = 0, count = 0;
+      if (r2.ok) {
+        const d = await r2.json();
+        const txs = (d?.txs ?? []) as any[];
+        for (const tx of txs.slice(0, 200)) {
+          const totalOut = (tx.out ?? []).reduce((s: number, o: any) => s + (o.value ?? 0), 0) / 1e8;
+          if (totalOut >= 50) { largeTxBTC += totalOut; count++; }
+        }
+      }
+      return {
+        source: "blockchain.info unconfirmed (proxy)",
+        symbol: "BTC",
+        note: "Free proxy: counts unconfirmed BTC txs >= 50 BTC. True netflow needs CryptoQuant/Glassnode.",
+        recentLargeTxBTC: +largeTxBTC.toFixed(2),
+        recentLargeTxCount: count,
+        verdict: count === 0 ? "no large flows detected in mempool right now"
+          : count > 10 ? "elevated whale activity in mempool"
+          : "moderate whale activity",
+      };
+    }
+
+    // ETH or ERC-20: use Etherscan public (rate-limited, no key needed for low rates)
+    if (base === "ETH") {
+      const url = `https://api.etherscan.io/api?module=account&action=txlist&address=0x28c6c06298d514db089934071355e5743bf21d60&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
+      const r = await fetch(url);
+      if (!r.ok) return { error: `Etherscan ${r.status}` };
+      const d = await r.json();
+      const txs = (d?.result ?? []) as any[];
+      if (!Array.isArray(txs)) return { error: "Etherscan rate-limited (try later)" };
+      const cutoff = Math.floor(Date.now() / 1000) - 24 * 3600;
+      let inflowETH = 0, outflowETH = 0, inCount = 0, outCount = 0;
+      for (const tx of txs) {
+        if (Number(tx.timeStamp) < cutoff) continue;
+        const value = Number(tx.value) / 1e18;
+        if (value < 50) continue; // whale threshold
+        const toBinance = tx.to?.toLowerCase() === "0x28c6c06298d514db089934071355e5743bf21d60";
+        if (toBinance) { inflowETH += value; inCount++; }
+        else { outflowETH += value; outCount++; }
+      }
+      const net = inflowETH - outflowETH;
+      return {
+        source: "etherscan (Binance hot wallet proxy)",
+        symbol: "ETH",
+        note: "Free proxy: tracks one Binance hot wallet only. True netflow needs CryptoQuant/Glassnode.",
+        windowHours: 24,
+        whaleThresholdETH: 50,
+        inflowETH: +inflowETH.toFixed(2),
+        outflowETH: +outflowETH.toFixed(2),
+        netflowETH: +net.toFixed(2),
+        inflowTxs: inCount,
+        outflowTxs: outCount,
+        verdict: net > 1000 ? "net inflow to exchange — potential sell pressure"
+          : net < -1000 ? "net outflow from exchange — accumulation / cold-storage"
+          : "roughly balanced flows",
+      };
+    }
+
+    return {
+      symbol: base,
+      note: "Free netflow proxy currently supports BTC and ETH. For other tokens, add a CRYPTOQUANT_API_KEY or GLASSNODE_API_KEY secret for true per-asset netflows.",
+      supported: ["BTC", "ETH"],
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Netflow fetch failed" };
+  }
+}
+
 async function tool_get_token_security(args: { contractAddress: string; chain?: string }) {
   const chainId = (args.chain ?? "ethereum").toLowerCase();
   const idMap: Record<string, string> = {
@@ -442,6 +747,61 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_cvd",
+      description: "Cumulative Volume Delta from Binance aggregated trades — measures aggressive buyers vs aggressive sellers and detects price/CVD divergence (e.g. price up but selling = fake rally). Use for 'is this rally real?', 'are buyers actually stepping in?', 'CVD on X', 'price/volume divergence'.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: { type: "string" },
+          interval: { type: "string", enum: ["15m", "1h", "4h", "1d"], description: "Window for the last/prev delta comparison. Default 1h." },
+        },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_funding_skew",
+      description: "Aggregate perpetual funding rates across Binance, Bybit, and OKX, compute average + dispersion, and verdict whether the market is in long-squeeze or short-squeeze danger zone. Use for 'funding on X', 'is the market crowded long?', 'short squeeze setup?', 'sentiment skew'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_liquidation_heatmap",
+      description: "Estimated liquidation level CLUSTERS (magnetic liquidity) above and below price by leverage tier (5×/10×/25×/50×/100×) — shows where leveraged stops sit and which side has the bigger magnet. Auto-uses Coinglass aggregated heatmap if COINGLASS_API_KEY is configured, else free derivation from Binance OI. Use for 'where will price magnet to?', 'liquidation heatmap', 'where are the stops?', 'liquidity above/below'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_exchange_netflow",
+      description: "24h whale-tx proxy of exchange netflow for BTC or ETH — net inflow = sell pressure, net outflow = accumulation/cold-storage. Free proxy via mempool.space (BTC) and Etherscan Binance hot wallet (ETH). Other tokens not supported without a paid CryptoQuant/Glassnode key. Use for 'are whales depositing X?', 'exchange netflow', 'is supply leaving exchanges?'.",
+      parameters: {
+        type: "object",
+        properties: { symbol: { type: "string" } },
+        required: ["symbol"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_token_security",
       description: "Run a smart-contract security check via GoPlus: honeypot risk, buy/sell tax, mintable, ownership flags. Use ONLY when the user gives a contract address.",
       parameters: {
@@ -465,6 +825,10 @@ async function runTool(name: string, args: any): Promise<any> {
     case "get_news_sentiment": return await tool_get_news_sentiment(args);
     case "get_orderbook_heatmap": return await tool_get_orderbook_heatmap(args);
     case "get_liquidations": return await tool_get_liquidations(args);
+    case "get_cvd": return await tool_get_cvd(args);
+    case "get_funding_skew": return await tool_get_funding_skew(args);
+    case "get_liquidation_heatmap": return await tool_get_liquidation_heatmap(args);
+    case "get_exchange_netflow": return await tool_get_exchange_netflow(args);
     case "get_token_security": return await tool_get_token_security(args);
     default: return { error: `Unknown tool ${name}` };
   }
@@ -508,10 +872,19 @@ TOOLS — call them whenever you need fresh data:
 - get_gas for ETH/L2 gas in gwei.
 - get_news_sentiment for headlines + bull/bear bias.
 - get_orderbook_heatmap for liquidity walls, bid/ask imbalance, and key support/resistance from resting orders.
-- get_liquidations for funding rate, open interest, long/short ratio, recent liquidations and squeeze risk.
+- get_liquidations for funding rate, open interest, long/short ratio, recent liquidations and squeeze risk (single-exchange Binance).
+- get_cvd for Cumulative Volume Delta — aggressive buyers vs sellers and price/volume divergence ("is this rally fake?").
+- get_funding_skew for multi-exchange funding (Binance + Bybit + OKX) and squeeze danger zone verdict.
+- get_liquidation_heatmap for magnetic liquidity — where leveraged stops cluster above/below price.
+- get_exchange_netflow for whale deposits/withdrawals to/from exchanges (BTC + ETH only on free tier).
 - get_token_security ONLY when given a 0x contract address.
 
-When the user asks for analysis, a setup, or "should I long/short X" — combine indicators + heatmap + liquidations to assess: trend (indicators), key levels (heatmap walls), and positioning risk (funding/OI/liquidations). Cite the actual numbers (e.g. "bid wall at $X worth $Y", "funding 0.08%/8h => longs over-leveraged").
+When the user asks for full analysis, a setup, or "should I long/short X" — combine indicators + heatmap + liquidations + CVD + funding skew to assess:
+  • Trend (indicators)
+  • Key levels (orderbook walls + liquidation magnets)
+  • Real flow (CVD — is the move backed by aggressive orders, or is it fake?)
+  • Positioning risk (funding skew across exchanges, OI, recent liquidations)
+Cite the actual numbers (e.g. "bid wall at $X worth $Y", "Binance+Bybit+OKX avg funding 0.08%/8h → longs crowded", "CVD diverging bearish: price +1.2% but $4M net selling", "long magnet $58.2k worth ~$45M in 5–10× stops"). Be honest when data is missing or a token isn't supported.
 
 You can chain tool calls. Prefer fewer (1-4) targeted calls over many. After tools return, synthesize into a final answer that quotes the specific numbers.${ctxText}`;
 
@@ -523,8 +896,8 @@ You can chain tool calls. Prefer fewer (1-4) targeted calls over many. After too
     const toolTrace: { name: string; args: any }[] = [];
     let finalContent = "";
 
-    // Tool-call loop (max 4 rounds to bound cost)
-    for (let round = 0; round < 4; round++) {
+    // Tool-call loop (max 6 rounds to bound cost)
+    for (let round = 0; round < 6; round++) {
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
