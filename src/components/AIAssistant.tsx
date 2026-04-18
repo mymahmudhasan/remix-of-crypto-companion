@@ -21,9 +21,10 @@ interface Props {
 
 const QUICK_PROMPTS = [
   "Full analysis on this chart",
-  "Where are the liquidity walls?",
-  "Funding & liquidation pressure?",
-  "Is SOL overbought right now?",
+  "Is this rally fake? (CVD divergence)",
+  "Funding skew & squeeze risk",
+  "Where will price magnet to? (liq heatmap)",
+  "Are whales depositing BTC?",
 ];
 
 const TOOL_LABEL: Record<string, string> = {
@@ -33,6 +34,10 @@ const TOOL_LABEL: Record<string, string> = {
   get_news_sentiment: "📰 News",
   get_orderbook_heatmap: "🔥 Heatmap",
   get_liquidations: "💥 Liquidations",
+  get_cvd: "📐 CVD",
+  get_funding_skew: "⚖ Funding Skew",
+  get_liquidation_heatmap: "🧲 Liq Magnets",
+  get_exchange_netflow: "🐋 Netflow",
   get_token_security: "🛡 Security",
 };
 
