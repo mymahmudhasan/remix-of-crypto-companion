@@ -6,6 +6,7 @@ import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSi
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
 import { CandleChart } from "@/components/CandleChart";
+import { LiquidityHeatmap } from "@/components/LiquidityHeatmap";
 import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 
@@ -206,8 +207,13 @@ function RightColumn({
   const chartWrapRef = useRef<HTMLDivElement>(null);
   return (
     <div className="flex min-h-0 flex-col gap-2">
-      <div ref={chartWrapRef} className="panel h-[260px] shrink-0 overflow-hidden p-2">
-        <CandleChart symbol={symbol} interval={interval} />
+      <div className="grid h-[260px] shrink-0 gap-2 lg:grid-cols-[1fr_320px]">
+        <div ref={chartWrapRef} className="panel overflow-hidden p-2">
+          <CandleChart symbol={symbol} interval={interval} />
+        </div>
+        <div className="hidden min-h-0 lg:block">
+          <LiquidityHeatmap symbol={symbol} market="spot" />
+        </div>
       </div>
       <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         {!plan && !loading && (
