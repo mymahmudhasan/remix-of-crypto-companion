@@ -6,6 +6,9 @@ import { formatPrice } from "@/lib/binance";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
 import { SaveSignalButton } from "@/components/SaveSignalButton";
 import { SignalsFilterBar, DEFAULT_FILTERS, type SignalsFilterState } from "@/components/SignalsFilterBar";
+import { SignalAlertsToggle } from "@/components/SignalAlertsToggle";
+import { processSignalsForAlerts } from "@/lib/signal-alerts";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 minutes
@@ -42,6 +45,10 @@ export default function Signals() {
       setData(r);
       setLastRun(new Date());
       setNextRunIn(REFRESH_MS);
+      const fired = processSignalsForAlerts(r.signals);
+      if (fired > 0) {
+        toast.success(`🔥 ${fired} new high-conviction signal${fired > 1 ? "s" : ""}`);
+      }
     } catch (e: any) {
       setError(e.message || "Failed to load");
     } finally {
@@ -92,6 +99,7 @@ export default function Signals() {
               Updated {lastRun.toLocaleTimeString()} · next in {mins}:{secs.toString().padStart(2, "0")}
             </span>
           )}
+          <SignalAlertsToggle />
           <button
             onClick={run}
             disabled={loading}
