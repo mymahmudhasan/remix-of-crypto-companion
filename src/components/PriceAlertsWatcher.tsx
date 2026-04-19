@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellOff, BellRing, AlertCircle } from "lucide-react";
+import { Bell, BellRing, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { plansClient, SAVED_PLANS_TABLE } from "@/lib/plans-client";
 import { subscribeMiniTickers } from "@/lib/binance";
@@ -72,34 +72,31 @@ export function PriceAlertsWatcher() {
   useEffect(() => {
     if (!enabled || perm !== "granted" || plans.length === 0) return;
     const symbols = Array.from(new Set(plans.map((p) => p.symbol)));
-    const unsub = subscribeMiniTickers(symbols, (ticks) => {
-      for (const t of ticks) {
-        const sym = t.symbol;
-        const curr = t.price;
-        const prev = prevPriceRef.current[sym];
-        if (typeof prev === "number") {
-          // Check every plan on this symbol
-          for (const p of plans.filter((x) => x.symbol === sym)) {
-            const fired = detectCrossings({
-              side: p.side, prev, curr,
-              entryLow: p.entry_low, entryHigh: p.entry_high,
-              stop: p.stop, targets: p.targets,
+    const unsub = subscribeMiniTickers(symbols, (t) => {
+      const sym = t.symbol;
+      const curr = t.price;
+      const prev = prevPriceRef.current[sym];
+      if (typeof prev === "number") {
+        for (const p of plans.filter((x) => x.symbol === sym)) {
+          const fired = detectCrossings({
+            side: p.side, prev, curr,
+            entryLow: p.entry_low, entryHigh: p.entry_high,
+            stop: p.stop, targets: p.targets,
+          });
+          for (const f of fired) {
+            if (!shouldAlert(p.id, f.kind)) continue;
+            fireBrowserNotification({
+              planId: p.id, kind: f.kind, symbol: p.symbol, side: p.side,
+              price: curr, level: f.level,
             });
-            for (const f of fired) {
-              if (!shouldAlert(p.id, f.kind)) continue;
-              fireBrowserNotification({
-                planId: p.id, kind: f.kind, symbol: p.symbol, side: p.side,
-                price: curr, level: f.level,
-              });
-              toast.message(
-                `${p.symbol.replace("USDT", "/USDT")} · ${f.kind.toUpperCase()}`,
-                { description: `${p.side.toUpperCase()} hit @ $${curr.toFixed(curr < 1 ? 6 : 2)}` },
-              );
-            }
+            toast.message(
+              `${p.symbol.replace("USDT", "/USDT")} · ${f.kind.toUpperCase()}`,
+              { description: `${p.side.toUpperCase()} hit @ $${curr.toFixed(curr < 1 ? 6 : 2)}` },
+            );
           }
         }
-        prevPriceRef.current[sym] = curr;
       }
+      prevPriceRef.current[sym] = curr;
     });
     return () => unsub();
   }, [enabled, perm, plans]);

@@ -45,11 +45,12 @@ export function PortfolioSettings() {
       toast.error(first || "Invalid holding");
       return;
     }
-    if (state.holdings.some((h) => h.symbol === parsed.data.symbol)) {
-      toast.error(`${parsed.data.symbol} already in portfolio`);
+    const holding: Holding = parsed.data as Holding;
+    if (state.holdings.some((h) => h.symbol === holding.symbol)) {
+      toast.error(`${holding.symbol} already in portfolio`);
       return;
     }
-    setState({ ...state, holdings: [...state.holdings, parsed.data] });
+    setState({ ...state, holdings: [...state.holdings, holding] });
     setDraft({ symbol: "", sizeUsd: "", sector: "" });
   };
 
@@ -63,8 +64,12 @@ export function PortfolioSettings() {
       toast.error("Invalid portfolio data");
       return;
     }
-    savePortfolio(parsed.data);
-    toast.success("Portfolio saved", { description: `${parsed.data.holdings.length} holdings · $${totalExposure(parsed.data).toFixed(0)} exposure` });
+    const validated: PortfolioState = {
+      accountSize: parsed.data.accountSize,
+      holdings: parsed.data.holdings as Holding[],
+    };
+    savePortfolio(validated);
+    toast.success("Portfolio saved", { description: `${validated.holdings.length} holdings · $${totalExposure(validated).toFixed(0)} exposure` });
     setOpen(false);
   };
 
