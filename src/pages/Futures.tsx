@@ -9,6 +9,7 @@ import { CandleChart } from "@/components/CandleChart";
 import { LiquidityHeatmap } from "@/components/LiquidityHeatmap";
 import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
+import { WinChanceBadge } from "@/components/WinChanceBadge";
 
 interface FuturesPlan extends PlanCommon {
   side: "long" | "short" | "neutral";
@@ -231,6 +232,17 @@ export default function Futures() {
                   <div className="text-right">
                     <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Conviction</span>
                     <div className="font-mono text-2xl font-bold">{plan.conviction}<span className="text-sm text-muted-foreground">/100</span></div>
+                    {plan.side !== "neutral" && plan.targets?.[0] != null && (() => {
+                      const entryMid = (plan.entry.low + plan.entry.high) / 2;
+                      const risk = Math.abs(entryMid - plan.stop);
+                      const reward = Math.abs(plan.targets[0] - entryMid);
+                      const rr = risk > 0 ? reward / risk : 0;
+                      return (
+                        <div className="mt-1 flex justify-end">
+                          <WinChanceBadge conviction={plan.conviction} risk_reward={rr} size="md" />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
