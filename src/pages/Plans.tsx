@@ -9,6 +9,7 @@ import { formatPrice, subscribeMiniTickers } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { estimateWinChanceFromLevels, winTier } from "@/lib/win-chance";
 
 /** Compute PnL % from entry to current price (leverage-aware for futures). */
 function computePnlPct(side: string, action: string | null, entry: number, price: number, leverage: number | null): number {
@@ -328,15 +329,13 @@ function PlanCard({
               ✦ {row.action}
             </span>
           )}
-          {row.conviction != null && row.targets?.[0] != null && (
-            <WinChanceBadgeForPlan
-              conviction={row.conviction}
-              entryLow={row.entry_low}
-              entryHigh={row.entry_high}
-              stop={row.stop}
-              firstTarget={row.targets[0]}
-            />
-          )}
+          {row.conviction != null && row.targets?.[0] != null && (() => {
+            const entryMid = (row.entry_low + row.entry_high) / 2;
+            const risk = Math.abs(entryMid - row.stop);
+            const reward = Math.abs(row.targets[0] - entryMid);
+            const rr = risk > 0 ? reward / risk : 0;
+            return <WinChanceBadge conviction={row.conviction} risk_reward={rr} />;
+          })()}
         </div>
         <span className={cn("rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase", statusMeta[row.status])}>
           {row.status}
