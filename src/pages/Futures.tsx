@@ -296,7 +296,7 @@ export default function Futures() {
                 </div>
               )}
 
-              <PlanDetails plan={plan} side={plan.side} currentPrice={snap.price} leverage={plan.leverage} />
+              <PlanDetails plan={plan} side={plan.side} currentPrice={snap.price} leverage={plan.leverage} symbol={symbol} mode="futures" />
 
               <p className="font-mono text-[10px] text-muted-foreground">
                 ⚠ Leverage trading can wipe out your account in minutes. Liquidation estimate is approximate (excludes funding & fees). Educational only — not financial advice.
