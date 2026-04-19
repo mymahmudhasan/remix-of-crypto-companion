@@ -8,6 +8,7 @@ import { MarketHero, MarketStatsBar } from "@/components/MarketHero";
 import { TopMovers } from "@/components/TopMovers";
 import { QuickActions } from "@/components/QuickActions";
 import { SuggestedTrades } from "@/components/SuggestedTrades";
+import { ReversalRadar } from "@/components/ReversalRadar";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
@@ -49,6 +50,11 @@ const Index = () => {
           <div className="hidden h-[640px] lg:block">
             <SignalsPanel closes={closes} symbol={symbol} />
           </div>
+        </div>
+
+        {/* Reversal radar full width — high-priority low-risk setups */}
+        <div className="h-[460px]">
+          <ReversalRadar onSelect={setSymbol} />
         </div>
 
         {/* Bottom: suggested trades + top movers */}
