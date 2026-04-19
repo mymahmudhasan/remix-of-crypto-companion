@@ -1,6 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { createChart, ColorType, type IChartApi, type ISeriesApi, type CandlestickData } from "lightweight-charts";
-import { fetchKlines } from "@/lib/binance";
+import { createChart, ColorType, type IChartApi, type CandlestickData } from "lightweight-charts";
+
+// Multiple Binance read-only hosts to bypass per-region blocks (some users are geo-blocked from api.binance.com).
+const KLINE_HOSTS = [
+  "https://data-api.binance.vision",
+  "https://api.binance.com",
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+];
+async function fetchKlinesAny(symbol: string, interval: string, limit: number) {
+  for (const host of KLINE_HOSTS) {
+    try {
+      const r = await fetch(`${host}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+      if (!r.ok) continue;
+      const raw: any[][] = await r.json();
+      return raw.map((k) => ({
+        time: Math.floor(k[0] / 1000), open: parseFloat(k[1]), high: parseFloat(k[2]),
+        low: parseFloat(k[3]), close: parseFloat(k[4]),
+      }));
+    } catch { /* try next */ }
+  }
+  throw new Error("All Binance hosts blocked");
+}
 
 interface Props {
   symbol: string;
@@ -34,34 +55,33 @@ export function MiniSetupChart({ symbol, interval = "1h", entryLow, entryHigh, s
     chartRef.current = chart;
 
     const series = chart.addCandlestickSeries({
-      upColor: "hsl(142, 76%, 50%)",
-      downColor: "hsl(0, 72%, 55%)",
-      borderUpColor: "hsl(142, 76%, 50%)",
-      borderDownColor: "hsl(0, 72%, 55%)",
-      wickUpColor: "hsl(142, 76%, 50%)",
-      wickDownColor: "hsl(0, 72%, 55%)",
+      upColor: "#22c55e",
+      downColor: "#ef4444",
+      borderUpColor: "#22c55e",
+      borderDownColor: "#ef4444",
+      wickUpColor: "#22c55e",
+      wickDownColor: "#ef4444",
     });
 
     let cancelled = false;
-    fetchKlines(symbol, interval, 80)
+    fetchKlinesAny(symbol, interval, 80)
       .then((klines) => {
         if (cancelled) return;
         const data: CandlestickData[] = klines.map((k) => ({
           time: k.time as any, open: k.open, high: k.high, low: k.low, close: k.close,
         }));
         series.setData(data);
-        // Entry zone (avg of low/high as line + price line for high & low)
-        const entryLine = series.createPriceLine({
+        series.createPriceLine({
           price: (entryLow + entryHigh) / 2,
-          color: "hsl(217, 91%, 60%)", lineWidth: 1, lineStyle: 2,
+          color: "#3b82f6", lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: "Entry",
         });
-        const stopLine = series.createPriceLine({
-          price: stop, color: "hsl(0, 72%, 55%)", lineWidth: 1, lineStyle: 2,
+        series.createPriceLine({
+          price: stop, color: "#ef4444", lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: "SL",
         });
         targets.forEach((t, i) => series.createPriceLine({
-          price: t, color: "hsl(142, 76%, 50%)", lineWidth: 1, lineStyle: 3,
+          price: t, color: "#22c55e", lineWidth: 1, lineStyle: 3,
           axisLabelVisible: true, title: `T${i + 1}`,
         }));
         chart.timeScale().fitContent();
