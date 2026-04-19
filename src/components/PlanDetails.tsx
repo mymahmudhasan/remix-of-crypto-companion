@@ -61,7 +61,7 @@ interface Props {
 }
 
 /** Detailed bottom-half analysis: summary, indicator breakdown, MTF, scenarios, R:R. */
-export function PlanDetails({ plan, side, currentPrice }: Props) {
+export function PlanDetails({ plan, side, currentPrice, leverage }: Props) {
   // Compute risk:reward per target (uses entry midpoint)
   const entryMid = (plan.entry.low + plan.entry.high) / 2;
   const risk = Math.abs(entryMid - plan.stop);
