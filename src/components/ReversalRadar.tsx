@@ -64,10 +64,13 @@ async function buildReversalSetup(symbol: string): Promise<ReversalSetup | null>
 
     let setup: ReversalSetup | null = null;
 
+    // Loosened wick/reclaim threshold so more setups surface
+    const wickTolerance = 0.992; // close within 0.8% of extreme counts as "wicked back"
+
     // TOP REVERSAL: recent high broke above previous range AND price wicked back / RSI overbought
     if (recentHigh > prevHigh) {
       const distancePct = ((recentHigh - prevHigh) / prevHigh) * 100;
-      const wickedBack = price < recentHigh * 0.995; // closed below the spike
+      const wickedBack = price < recentHigh * wickTolerance;
       const overbought = lastRsi > 65;
       if (wickedBack && (overbought || distancePct > 1)) {
         const reasons: string[] = [];
@@ -113,7 +116,7 @@ async function buildReversalSetup(symbol: string): Promise<ReversalSetup | null>
     // BOTTOM REVERSAL: recent low broke below previous range AND price wicked back / RSI oversold
     if (recentLow < prevLow) {
       const distancePct = ((prevLow - recentLow) / prevLow) * 100;
-      const wickedBack = price > recentLow * 1.005;
+      const wickedBack = price > recentLow * (2 - wickTolerance);
       const oversold = lastRsi < 35;
       if (wickedBack && (oversold || distancePct > 1)) {
         const reasons: string[] = [];
@@ -159,8 +162,8 @@ async function buildReversalSetup(symbol: string): Promise<ReversalSetup | null>
     }
 
     if (!setup) return null;
-    // Require minimum quality
-    if (setup.reversalScore < 50 || setup.rr < 1.2) return null;
+    // Require minimum quality (loosened so moderate reversals also surface)
+    if (setup.reversalScore < 40 || setup.rr < 1) return null;
     return setup;
   } catch {
     return null;
