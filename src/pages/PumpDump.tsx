@@ -167,7 +167,7 @@ export default function PumpDump() {
                   {error
                     ? <span className="text-bear">⚠ {error}</span>
                     : scannedCount > 0
-                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 2.5× vol & |Δ| ≥ 0.8% / 5m. Markets are calm — try Rescan in a few min.`
+                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 1.8× vol & |Δ| ≥ 0.5% / 5m. Markets are calm — try Rescan in a few min.`
                       : "Loading…"}
                 </td></tr>
               )}
