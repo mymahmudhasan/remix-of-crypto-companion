@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchKlines, formatPrice } from "@/lib/binance";
+import { fetchKlines, fetch24h, formatPrice } from "@/lib/binance";
 import { rsi } from "@/lib/indicators";
 import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,13 +22,27 @@ interface ReversalSetup {
   reasons: string[];
 }
 
-const SCAN_UNIVERSE = [
-  "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT",
-  "AVAXUSDT", "LINKUSDT", "TONUSDT", "TRXUSDT", "DOTUSDT", "NEARUSDT", "APTUSDT",
-  "ARBUSDT", "OPUSDT", "SUIUSDT", "INJUSDT", "ATOMUSDT", "LTCUSDT", "TIAUSDT",
-  "SEIUSDT", "RNDRUSDT", "FETUSDT", "WIFUSDT", "PEPEUSDT", "JUPUSDT", "WLDUSDT",
-  "FILUSDT", "ICPUSDT", "HBARUSDT", "VETUSDT", "ALGOUSDT", "STXUSDT", "IMXUSDT",
-];
+// Stablecoin / wrapped pairs we don't want in the radar (no real reversal play)
+const EXCLUDE_BASES = new Set([
+  "USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "PYUSD", "EURI", "EUR",
+  "GBP", "AUD", "BRL", "TRY", "RUB", "PLN", "ZAR", "ARS", "MXN", "JPY",
+]);
+
+async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
+  const tickers = await fetch24h();
+  return tickers
+    .filter((t) => {
+      if (!t.symbol.endsWith("USDT")) return false;
+      const base = t.symbol.slice(0, -4);
+      if (EXCLUDE_BASES.has(base)) return false;
+      // skip leveraged tokens (UP/DOWN/BULL/BEAR)
+      if (/(UP|DOWN|BULL|BEAR)$/.test(base)) return false;
+      return true;
+    })
+    .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+    .slice(0, limit)
+    .map((t) => t.symbol);
+}
 
 const LOOKBACK = 50; // bars used to define "previous high/low"
 
@@ -173,23 +187,37 @@ async function buildReversalSetup(symbol: string): Promise<ReversalSetup | null>
 export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }) {
   const [items, setItems] = useState<ReversalSetup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scanned, setScanned] = useState(0);
+  const [universeSize, setUniverseSize] = useState(0);
   const [filter, setFilter] = useState<"all" | "bottom" | "top">("all");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setScanned(0);
 
     (async () => {
+      let universe: string[] = [];
+      try {
+        universe = await fetchTopUsdtUniverse(100);
+      } catch {
+        // fallback to a small set if 24hr endpoint failed
+        universe = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
+      }
+      if (cancelled) return;
+      setUniverseSize(universe.length);
+
       const results: ReversalSetup[] = [];
-      const batchSize = 6;
-      for (let i = 0; i < SCAN_UNIVERSE.length; i += batchSize) {
+      const batchSize = 8;
+      for (let i = 0; i < universe.length; i += batchSize) {
         if (cancelled) return;
-        const batch = SCAN_UNIVERSE.slice(i, i + batchSize);
+        const batch = universe.slice(i, i + batchSize);
         const batchResults = await Promise.all(batch.map(buildReversalSetup));
         batchResults.forEach((r) => r && results.push(r));
         if (!cancelled) {
           const sorted = [...results].sort((a, b) => b.reversalScore - a.reversalScore);
-          setItems(sorted.slice(0, 10));
+          setItems(sorted.slice(0, 12));
+          setScanned(Math.min(i + batchSize, universe.length));
         }
       }
       if (!cancelled) setLoading(false);
@@ -214,6 +242,11 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
             Low Risk
           </span>
           {loading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+          {universeSize > 0 && (
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {loading ? `${scanned}/${universeSize}` : `${universeSize} pairs`}
+            </span>
+          )}
         </div>
         <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
           {(["all", "bottom", "top"] as const).map((f) => (
