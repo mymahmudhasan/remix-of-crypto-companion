@@ -16,6 +16,7 @@ import { useFavorites } from "@/hooks/use-favorites";
 import { CandleChart } from "@/components/CandleChart";
 import { SaveCoachButton, type CoachPayload } from "@/components/SaveCoachButton";
 import { NewsPanel } from "@/components/NewsPanel";
+import { RiskGuidance } from "@/components/RiskGuidance";
 import { cn } from "@/lib/utils";
 
 const MTF_INTERVALS = ["1h", "4h", "1d"];
@@ -589,7 +590,19 @@ function CoachView({
         />
       </div>
 
-      {/* Checklist */}
+      {/* Risk Management Guidance */}
+      <RiskGuidance
+        side={coach.side === "long" || coach.side === "short" ? coach.side : "neutral"}
+        conviction={coach.confidence}
+        entryLow={coach.levels.entryLow}
+        entryHigh={coach.levels.entryHigh}
+        stop={coach.levels.stop}
+        firstTarget={coach.levels.targets?.[0]}
+        riskPct={coach.levels.riskPct}
+        leverage={coach.levels.leverage}
+      />
+
+
       <div className="panel p-3">
         <div className="mb-2 flex items-center gap-2">
           <ListChecks className="size-3.5 text-primary" />

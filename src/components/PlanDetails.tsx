@@ -2,6 +2,7 @@ import { TrendingUp, TrendingDown, Minus, AlertTriangle, Layers, Target, Sparkle
 import { formatPrice } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { RiskGuidance } from "@/components/RiskGuidance";
 
 export interface IndicatorRow {
   name: string;
@@ -55,10 +56,12 @@ interface Props {
   plan: PlanCommon;
   side: "long" | "short" | "neutral"; // for R:R direction
   currentPrice: number;
+  /** Optional: futures leverage for sizing math */
+  leverage?: number;
 }
 
 /** Detailed bottom-half analysis: summary, indicator breakdown, MTF, scenarios, R:R. */
-export function PlanDetails({ plan, side, currentPrice }: Props) {
+export function PlanDetails({ plan, side, currentPrice, leverage }: Props) {
   // Compute risk:reward per target (uses entry midpoint)
   const entryMid = (plan.entry.low + plan.entry.high) / 2;
   const risk = Math.abs(entryMid - plan.stop);
@@ -123,6 +126,19 @@ export function PlanDetails({ plan, side, currentPrice }: Props) {
           </div>
         </div>
       )}
+
+      {/* Risk Management Guidance — shown for every analysis */}
+      <RiskGuidance
+        side={side}
+        conviction={plan.conviction}
+        entryLow={plan.entry.low}
+        entryHigh={plan.entry.high}
+        stop={plan.stop}
+        firstTarget={plan.targets[0]}
+        riskPct={plan.riskPct}
+        leverage={leverage}
+        timeHorizon={plan.timeHorizon}
+      />
 
       {/* Indicator breakdown table */}
       {plan.indicatorBreakdown?.length > 0 && (
