@@ -61,7 +61,7 @@ export default function PumpDump() {
         const thrustPct = ((last.close - prev.close) / prev.close) * 100;
         const changePct1h = ((last.close - k[Math.max(0, k.length - 13)].close) / k[Math.max(0, k.length - 13)].close) * 100;
 
-        if (volRatio >= 2.5 && Math.abs(thrustPct) >= 0.8) {
+        if (volRatio >= 1.8 && Math.abs(thrustPct) >= 0.5) {
           found.push({
             symbol: sym,
             base: sym.replace("USDT", ""),
