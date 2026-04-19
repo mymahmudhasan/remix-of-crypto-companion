@@ -242,6 +242,11 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
             Low Risk
           </span>
           {loading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+          {universeSize > 0 && (
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {loading ? `${scanned}/${universeSize}` : `${universeSize} pairs`}
+            </span>
+          )}
         </div>
         <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
           {(["all", "bottom", "top"] as const).map((f) => (
