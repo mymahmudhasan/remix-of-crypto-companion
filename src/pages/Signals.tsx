@@ -42,6 +42,10 @@ export default function Signals() {
       setData(r);
       setLastRun(new Date());
       setNextRunIn(REFRESH_MS);
+      const fired = processSignalsForAlerts(r.signals);
+      if (fired > 0) {
+        toast.success(`🔥 ${fired} new high-conviction signal${fired > 1 ? "s" : ""}`);
+      }
     } catch (e: any) {
       setError(e.message || "Failed to load");
     } finally {
