@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Sparkles, TrendingUp, TrendingDown, Loader2, AlertCircle, Target, Shield, Flame, Clock, Zap, ExternalLink } from "lucide-react";
+import { RefreshCw, Sparkles, TrendingUp, TrendingDown, Loader2, AlertCircle, Target, Shield, Flame, Clock, Zap, ExternalLink, Filter } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignalsResponse, type PremiumSignal } from "@/lib/premium-signals";
 import { formatPrice } from "@/lib/binance";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
