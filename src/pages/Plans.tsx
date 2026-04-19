@@ -9,7 +9,6 @@ import { formatPrice, subscribeMiniTickers } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
-import { estimateWinChanceFromLevels, winTier } from "@/lib/win-chance";
 
 /** Compute PnL % from entry to current price (leverage-aware for futures). */
 function computePnlPct(side: string, action: string | null, entry: number, price: number, leverage: number | null): number {
