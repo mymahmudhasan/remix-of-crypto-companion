@@ -2,3 +2,6 @@ project_id = "xybmzhiiqgaejowcvgta"
 
 [functions.analyst-chat]
 verify_jwt = false
+
+[functions.pro-analysis]
+verify_jwt = false
