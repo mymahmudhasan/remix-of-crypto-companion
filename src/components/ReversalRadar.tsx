@@ -194,18 +194,23 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
   const [scanned, setScanned] = useState(0);
   const [universeSize, setUniverseSize] = useState(0);
   const [filter, setFilter] = useState<"all" | "bottom" | "top">("all");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+
+  const refresh = useCallback(() => setRefreshTick((t) => t + 1), []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setScanned(0);
+    setItems([]);
 
     (async () => {
       let universe: string[] = [];
       try {
         universe = await fetchTopUsdtUniverse(100);
       } catch {
-        // fallback to a small set if 24hr endpoint failed
         universe = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
       }
       if (cancelled) return;
@@ -216,7 +221,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
       for (let i = 0; i < universe.length; i += batchSize) {
         if (cancelled) return;
         const batch = universe.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map(buildReversalSetup));
+        const batchResults = await Promise.all(batch.map((s) => buildReversalSetup(s, timeframe)));
         batchResults.forEach((r) => r && results.push(r));
         if (!cancelled) {
           const sorted = [...results].sort((a, b) => b.reversalScore - a.reversalScore);
@@ -224,13 +229,22 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
           setScanned(Math.min(i + batchSize, universe.length));
         }
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+        setLastUpdated(Date.now());
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [timeframe, refreshTick]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const id = setInterval(() => refresh(), REFRESH_MS);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   const filtered = items.filter((it) => filter === "all" || it.type === filter);
 
