@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchKlines, fetch24h, formatPrice } from "@/lib/binance";
 import { rsi } from "@/lib/indicators";
-import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap } from "lucide-react";
+import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Timeframe = "15m" | "1h" | "4h";
+const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
+const REFRESH_MS = 5 * 60 * 1000;
 
 interface ReversalSetup {
   symbol: string;
@@ -46,9 +50,9 @@ async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
 
 const LOOKBACK = 50; // bars used to define "previous high/low"
 
-async function buildReversalSetup(symbol: string): Promise<ReversalSetup | null> {
+async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise<ReversalSetup | null> {
   try {
-    const klines = await fetchKlines(symbol, "1h", 120);
+    const klines = await fetchKlines(symbol, timeframe, 120);
     if (klines.length < LOOKBACK + 5) return null;
 
     const closes = klines.map((k) => k.close);
