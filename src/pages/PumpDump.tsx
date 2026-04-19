@@ -162,7 +162,13 @@ export default function PumpDump() {
                 );
               })}
               {!scanning && spikes.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">No anomalies right now. Markets are calm.</td></tr>
+                <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">
+                  {error
+                    ? <span className="text-bear">⚠ {error}</span>
+                    : scannedCount > 0
+                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 2.5× vol & |Δ| ≥ 0.8% / 5m. Markets are calm — try Rescan in a few min.`
+                      : "Loading…"}
+                </td></tr>
               )}
             </tbody>
           </table>
