@@ -56,6 +56,8 @@ interface Props {
   plan: PlanCommon;
   side: "long" | "short" | "neutral"; // for R:R direction
   currentPrice: number;
+  /** Optional: futures leverage for sizing math */
+  leverage?: number;
 }
 
 /** Detailed bottom-half analysis: summary, indicator breakdown, MTF, scenarios, R:R. */
