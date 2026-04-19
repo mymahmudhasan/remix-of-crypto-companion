@@ -18,14 +18,49 @@ export interface Kline {
   volume: number;
 }
 
-const REST = "https://api.binance.com";
+// Multiple Binance hosts — try in order. `api.binance.com` is geo-blocked in some
+// regions (US, etc.) which surfaces in the browser as `TypeError: Failed to fetch`
+// (no CORS headers on the network error). The data-api.binance.vision mirror is
+// public-data only and works from most networks.
+const REST_HOSTS = [
+  "https://api.binance.com",
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+  "https://api3.binance.com",
+  "https://data-api.binance.vision",
+];
+
+let _preferredHostIdx = 0;
+
+async function restFetch(path: string): Promise<Response> {
+  let lastErr: unknown = null;
+  // Start from the host that worked last time, then try the rest.
+  const order = [
+    ..._preferredHostIdx > 0 ? [_preferredHostIdx] : [],
+    ...REST_HOSTS.map((_, i) => i).filter((i) => i !== _preferredHostIdx),
+  ];
+  for (const idx of order) {
+    const host = REST_HOSTS[idx];
+    try {
+      const res = await fetch(`${host}${path}`);
+      if (res.ok) {
+        _preferredHostIdx = idx;
+        return res;
+      }
+      // 4xx (e.g. 451 region block) → try next host
+      lastErr = new Error(`${host} → ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("All Binance hosts unreachable");
+}
 
 export async function fetch24h(symbols?: string[]): Promise<Ticker24h[]> {
-  const url = symbols && symbols.length
-    ? `${REST}/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`
-    : `${REST}/api/v3/ticker/24hr`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Binance 24h ${res.status}`);
+  const path = symbols && symbols.length
+    ? `/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(symbols))}`
+    : `/api/v3/ticker/24hr`;
+  const res = await restFetch(path);
   return res.json();
 }
 
@@ -40,8 +75,7 @@ export interface ExchangeSymbol {
 let _exchangeInfoCache: ExchangeSymbol[] | null = null;
 export async function fetchExchangeInfo(): Promise<ExchangeSymbol[]> {
   if (_exchangeInfoCache) return _exchangeInfoCache;
-  const res = await fetch(`${REST}/api/v3/exchangeInfo`);
-  if (!res.ok) throw new Error(`Binance exchangeInfo ${res.status}`);
+  const res = await restFetch(`/api/v3/exchangeInfo`);
   const data = await res.json();
   _exchangeInfoCache = (data.symbols as ExchangeSymbol[]).filter(
     (s) => s.status === "TRADING" && s.isSpotTradingAllowed
@@ -56,8 +90,7 @@ export async function fetchAllUsdtSymbols(): Promise<string[]> {
 }
 
 export async function fetchKlines(symbol: string, interval: string, limit = 200): Promise<Kline[]> {
-  const res = await fetch(`${REST}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-  if (!res.ok) throw new Error(`Binance klines ${res.status}`);
+  const res = await restFetch(`/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
   const raw: any[][] = await res.json();
   return raw.map((k) => ({
     time: Math.floor(k[0] / 1000),
