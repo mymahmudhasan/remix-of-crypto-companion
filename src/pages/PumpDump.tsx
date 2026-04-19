@@ -43,7 +43,8 @@ export default function PumpDump() {
     const found: SpikeRow[] = [];
     let succeeded = 0;
     let failed = 0;
-    const subset = SCANNER_UNIVERSE.slice(0, 60);
+    // Scan top 100 by liquidity (universe is already sorted by volume rank)
+    const subset = SCANNER_UNIVERSE.slice(0, 100);
     for (let i = 0; i < subset.length; i++) {
       const sym = subset[i];
       try {
@@ -60,7 +61,7 @@ export default function PumpDump() {
         const thrustPct = ((last.close - prev.close) / prev.close) * 100;
         const changePct1h = ((last.close - k[Math.max(0, k.length - 13)].close) / k[Math.max(0, k.length - 13)].close) * 100;
 
-        if (volRatio >= 2.5 && Math.abs(thrustPct) >= 0.8) {
+        if (volRatio >= 1.8 && Math.abs(thrustPct) >= 0.5) {
           found.push({
             symbol: sym,
             base: sym.replace("USDT", ""),
@@ -166,7 +167,7 @@ export default function PumpDump() {
                   {error
                     ? <span className="text-bear">⚠ {error}</span>
                     : scannedCount > 0
-                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 2.5× vol & |Δ| ≥ 0.8% / 5m. Markets are calm — try Rescan in a few min.`
+                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 1.8× vol & |Δ| ≥ 0.5% / 5m. Markets are calm — try Rescan in a few min.`
                       : "Loading…"}
                 </td></tr>
               )}
@@ -174,7 +175,7 @@ export default function PumpDump() {
           </table>
         </div>
         <div className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-          Last refresh: {updatedAt.toLocaleTimeString()} · alerts trigger at vol ≥ 2.5× baseline & |Δ| ≥ 0.8% / 5m
+          Last refresh: {updatedAt.toLocaleTimeString()} · alerts trigger at vol ≥ 1.8× baseline & |Δ| ≥ 0.5% / 5m · top 100 pairs
         </div>
       </div>
     </div>

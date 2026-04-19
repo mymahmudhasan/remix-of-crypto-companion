@@ -4,6 +4,7 @@ import { NavLink } from "@/components/NavLink";
 import { TickerBar } from "@/components/TickerBar";
 import { FavoritesStrip } from "@/components/FavoritesStrip";
 import { FootprintAlertsWatcher } from "@/components/FootprintAlertsWatcher";
+import { AnalystChatDock } from "@/components/AnalystChatDock";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -71,6 +72,8 @@ export function AppLayout() {
       <main className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </main>
+
+      <AnalystChatDock />
     </div>
   );
 }
