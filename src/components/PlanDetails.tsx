@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
 import { RiskGuidance } from "@/components/RiskGuidance";
+import { ProAnalysisPanel } from "@/components/ProAnalysisPanel";
 
 export interface IndicatorRow {
   name: string;
@@ -58,10 +59,13 @@ interface Props {
   currentPrice: number;
   /** Optional: futures leverage for sizing math */
   leverage?: number;
+  /** Symbol + mode required for Pro Analysis panel */
+  symbol?: string;
+  mode?: "spot" | "futures";
 }
 
 /** Detailed bottom-half analysis: summary, indicator breakdown, MTF, scenarios, R:R. */
-export function PlanDetails({ plan, side, currentPrice, leverage }: Props) {
+export function PlanDetails({ plan, side, currentPrice, leverage, symbol, mode }: Props) {
   // Compute risk:reward per target (uses entry midpoint)
   const entryMid = (plan.entry.low + plan.entry.high) / 2;
   const risk = Math.abs(entryMid - plan.stop);
