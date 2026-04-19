@@ -20,6 +20,8 @@ export default function PumpDump() {
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
+  const [error, setError] = useState<string | null>(null);
+  const [scannedCount, setScannedCount] = useState(0);
 
   const refreshMovers = async () => {
     try {
@@ -27,20 +29,26 @@ export default function PumpDump() {
       const rows = data.map((t) => tickerToRow(t)).filter(Boolean) as ScannerRow[];
       setMovers(rows);
       setUpdatedAt(new Date());
-    } catch (e) { console.error(e); }
+      setError(null);
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Unable to reach Binance from your network");
+    }
   };
 
   const runSpikeScan = async () => {
     setScanning(true);
     setScanProgress(0);
+    setScannedCount(0);
     const found: SpikeRow[] = [];
-    // Scan a focused subset (top 60 by liquidity assumption — first 60 of universe)
+    let succeeded = 0;
+    let failed = 0;
     const subset = SCANNER_UNIVERSE.slice(0, 60);
     for (let i = 0; i < subset.length; i++) {
       const sym = subset[i];
       try {
-        // 5m bars, 30 candles = 2.5h window
         const k = await fetchKlines(sym, "5m", 30);
+        succeeded++;
         if (k.length < 22) { setScanProgress(((i + 1) / subset.length) * 100); continue; }
         const last = k[k.length - 1];
         const prev = k[k.length - 2];
@@ -63,13 +71,20 @@ export default function PumpDump() {
             verdict: thrustPct > 0 ? (volRatio >= 5 ? "pump" : "watch") : "dump",
           });
         }
-      } catch (e) { /* skip */ }
+      } catch (e) {
+        failed++;
+      }
       setScanProgress(((i + 1) / subset.length) * 100);
-      // tiny pause to be polite to Binance
       await new Promise((r) => setTimeout(r, 30));
     }
     found.sort((a, b) => b.volRatio - a.volRatio);
     setSpikes(found);
+    setScannedCount(succeeded);
+    if (succeeded === 0 && failed > 0) {
+      setError("Binance API is unreachable from your network (likely region-blocked). Try a VPN or different network.");
+    } else if (succeeded > 0) {
+      setError(null);
+    }
     setScanning(false);
   };
 
@@ -147,7 +162,13 @@ export default function PumpDump() {
                 );
               })}
               {!scanning && spikes.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">No anomalies right now. Markets are calm.</td></tr>
+                <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">
+                  {error
+                    ? <span className="text-bear">⚠ {error}</span>
+                    : scannedCount > 0
+                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 2.5× vol & |Δ| ≥ 0.8% / 5m. Markets are calm — try Rescan in a few min.`
+                      : "Loading…"}
+                </td></tr>
               )}
             </tbody>
           </table>
