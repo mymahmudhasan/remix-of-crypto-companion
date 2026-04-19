@@ -348,14 +348,8 @@ Return ONLY a JSON object via the 'publish_signals' tool.`;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    // 1. Get top 30 symbols by 24h quote volume
-    const r = await fetch(`${FAPI}/fapi/v1/ticker/24hr`);
-    if (!r.ok) throw new Error("ticker24hr failed");
-    const tickers: any[] = await r.json();
-    const top = tickers
-      .filter((t) => t.symbol.endsWith("USDT") && !t.symbol.includes("_"))
-      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-      .slice(0, 30);
+    // 1. Get top 30 symbols by 24h quote volume (with futures→spot failover)
+    const top = await fetchTopTickers(30);
 
     // 2. Build candidate metrics in parallel (chunked to avoid hammering)
     const candidates: Candidate[] = [];
