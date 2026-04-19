@@ -34,12 +34,12 @@ export function MiniSetupChart({ symbol, interval = "1h", entryLow, entryHigh, s
     chartRef.current = chart;
 
     const series = chart.addCandlestickSeries({
-      upColor: "hsl(142, 76%, 50%)",
-      downColor: "hsl(0, 72%, 55%)",
-      borderUpColor: "hsl(142, 76%, 50%)",
-      borderDownColor: "hsl(0, 72%, 55%)",
-      wickUpColor: "hsl(142, 76%, 50%)",
-      wickDownColor: "hsl(0, 72%, 55%)",
+      upColor: "#22c55e",
+      downColor: "#ef4444",
+      borderUpColor: "#22c55e",
+      borderDownColor: "#ef4444",
+      wickUpColor: "#22c55e",
+      wickDownColor: "#ef4444",
     });
 
     let cancelled = false;
@@ -50,18 +50,17 @@ export function MiniSetupChart({ symbol, interval = "1h", entryLow, entryHigh, s
           time: k.time as any, open: k.open, high: k.high, low: k.low, close: k.close,
         }));
         series.setData(data);
-        // Entry zone (avg of low/high as line + price line for high & low)
-        const entryLine = series.createPriceLine({
+        series.createPriceLine({
           price: (entryLow + entryHigh) / 2,
-          color: "hsl(217, 91%, 60%)", lineWidth: 1, lineStyle: 2,
+          color: "#3b82f6", lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: "Entry",
         });
-        const stopLine = series.createPriceLine({
-          price: stop, color: "hsl(0, 72%, 55%)", lineWidth: 1, lineStyle: 2,
+        series.createPriceLine({
+          price: stop, color: "#ef4444", lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: "SL",
         });
         targets.forEach((t, i) => series.createPriceLine({
-          price: t, color: "hsl(142, 76%, 50%)", lineWidth: 1, lineStyle: 3,
+          price: t, color: "#22c55e", lineWidth: 1, lineStyle: 3,
           axisLabelVisible: true, title: `T${i + 1}`,
         }));
         chart.timeScale().fitContent();
