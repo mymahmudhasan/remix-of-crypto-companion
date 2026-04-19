@@ -43,7 +43,8 @@ export default function PumpDump() {
     const found: SpikeRow[] = [];
     let succeeded = 0;
     let failed = 0;
-    const subset = SCANNER_UNIVERSE.slice(0, 60);
+    // Scan top 100 by liquidity (universe is already sorted by volume rank)
+    const subset = SCANNER_UNIVERSE.slice(0, 100);
     for (let i = 0; i < subset.length; i++) {
       const sym = subset[i];
       try {
