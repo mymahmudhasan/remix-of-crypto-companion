@@ -603,6 +603,19 @@ function CoachView({
         leverage={coach.levels.leverage}
       />
 
+      {/* Pro Analysis */}
+      <ProAnalysisPanel
+        setup={{
+          symbol,
+          side: coach.side === "long" || coach.side === "short" ? coach.side : "neutral",
+          entryLow: coach.levels.entryLow,
+          entryHigh: coach.levels.entryHigh,
+          stop: coach.levels.stop,
+          targets: coach.levels.targets || [],
+          conviction: coach.confidence,
+          leverage: coach.levels.leverage,
+        }}
+      />
 
       <div className="panel p-3">
         <div className="mb-2 flex items-center gap-2">
