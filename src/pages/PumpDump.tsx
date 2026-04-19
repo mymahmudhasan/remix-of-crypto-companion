@@ -175,7 +175,7 @@ export default function PumpDump() {
           </table>
         </div>
         <div className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-          Last refresh: {updatedAt.toLocaleTimeString()} · alerts trigger at vol ≥ 2.5× baseline & |Δ| ≥ 0.8% / 5m
+          Last refresh: {updatedAt.toLocaleTimeString()} · alerts trigger at vol ≥ 1.8× baseline & |Δ| ≥ 0.5% / 5m · top 100 pairs
         </div>
       </div>
     </div>
