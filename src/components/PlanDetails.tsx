@@ -127,6 +127,19 @@ export function PlanDetails({ plan, side, currentPrice, leverage }: Props) {
         </div>
       )}
 
+      {/* Risk Management Guidance — shown for every analysis */}
+      <RiskGuidance
+        side={side}
+        conviction={plan.conviction}
+        entryLow={plan.entry.low}
+        entryHigh={plan.entry.high}
+        stop={plan.stop}
+        firstTarget={plan.targets[0]}
+        riskPct={plan.riskPct}
+        leverage={leverage}
+        timeHorizon={plan.timeHorizon}
+      />
+
       {/* Indicator breakdown table */}
       {plan.indicatorBreakdown?.length > 0 && (
         <div className="panel p-3">
