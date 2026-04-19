@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchKlines, formatPrice } from "@/lib/binance";
+import { fetchKlines, fetch24h, formatPrice } from "@/lib/binance";
 import { rsi } from "@/lib/indicators";
 import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
