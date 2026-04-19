@@ -1,6 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { createChart, ColorType, type IChartApi, type ISeriesApi, type CandlestickData } from "lightweight-charts";
-import { fetchKlines } from "@/lib/binance";
+import { createChart, ColorType, type IChartApi, type CandlestickData } from "lightweight-charts";
+
+// Multiple Binance read-only hosts to bypass per-region blocks (some users are geo-blocked from api.binance.com).
+const KLINE_HOSTS = [
+  "https://data-api.binance.vision",
+  "https://api.binance.com",
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+];
+async function fetchKlinesAny(symbol: string, interval: string, limit: number) {
+  for (const host of KLINE_HOSTS) {
+    try {
+      const r = await fetch(`${host}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+      if (!r.ok) continue;
+      const raw: any[][] = await r.json();
+      return raw.map((k) => ({
+        time: Math.floor(k[0] / 1000), open: parseFloat(k[1]), high: parseFloat(k[2]),
+        low: parseFloat(k[3]), close: parseFloat(k[4]),
+      }));
+    } catch { /* try next */ }
+  }
+  throw new Error("All Binance hosts blocked");
+}
 
 interface Props {
   symbol: string;
