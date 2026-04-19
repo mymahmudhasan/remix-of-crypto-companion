@@ -7,6 +7,7 @@ import { AIAssistant } from "@/components/AIAssistant";
 import { MarketHero, MarketStatsBar } from "@/components/MarketHero";
 import { TopMovers } from "@/components/TopMovers";
 import { QuickActions } from "@/components/QuickActions";
+import { SuggestedTrades } from "@/components/SuggestedTrades";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
@@ -50,9 +51,14 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Bottom: top movers */}
-        <div className="h-[260px]">
-          <TopMovers onSelect={setSymbol} />
+        {/* Bottom: suggested trades + top movers */}
+        <div className="grid gap-2 lg:grid-cols-2">
+          <div className="h-[420px]">
+            <SuggestedTrades onSelect={setSymbol} />
+          </div>
+          <div className="h-[420px]">
+            <TopMovers onSelect={setSymbol} />
+          </div>
         </div>
 
         {/* Mobile-only stacks */}
