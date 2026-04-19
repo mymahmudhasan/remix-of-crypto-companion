@@ -9,7 +9,7 @@ import { SignalsFilterBar, DEFAULT_FILTERS, type SignalsFilterState } from "@/co
 import { SignalAlertsToggle } from "@/components/SignalAlertsToggle";
 import { processSignalsForAlerts } from "@/lib/signal-alerts";
 import { toast } from "sonner";
-import { estimateWinChance, winTier, winTierLabel } from "@/lib/win-chance";
+import { WinChanceBadge } from "@/components/WinChanceBadge";
 import { cn } from "@/lib/utils";
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 minutes
@@ -208,7 +208,7 @@ function SignalCard({ signal, onOpen }: { signal: PremiumSignal; onOpen: () => v
               )}>
                 {signal.side}
               </span>
-              <WinChanceBadge signal={signal} />
+              <WinChanceBadge conviction={signal.conviction} risk_reward={signal.risk_reward} />
             </div>
             <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
               {signal.setup_name}
@@ -304,33 +304,3 @@ function InfoBlock({ icon, label, text }: { icon: React.ReactNode; label: string
   );
 }
 
-function WinChanceBadge({ signal }: { signal: PremiumSignal }) {
-  const pct = estimateWinChance(signal);
-  const tier = winTier(pct);
-  const styles =
-    tier === "elite" ? "border-bull/60 bg-bull/15 text-bull"
-    : tier === "strong" ? "border-primary/60 bg-primary/15 text-primary"
-    : tier === "decent" ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
-    : "border-border bg-surface/40 text-muted-foreground";
-  const barColor =
-    tier === "elite" ? "bg-bull"
-    : tier === "strong" ? "bg-primary"
-    : tier === "decent" ? "bg-amber-400"
-    : "bg-muted-foreground";
-
-  return (
-    <span
-      title={`Estimated win chance based on AI conviction (${signal.conviction}) and R:R (${signal.risk_reward.toFixed(2)}). Educational only — not a guarantee.`}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider",
-        styles
-      )}
-    >
-      <span>Win {pct}%</span>
-      <span className="hidden sm:inline opacity-70">· {winTierLabel(tier)}</span>
-      <span className="ml-0.5 h-1 w-8 overflow-hidden rounded-full bg-background/40">
-        <span className={cn("block h-full transition-all", barColor)} style={{ width: `${pct}%` }} />
-      </span>
-    </span>
-  );
-}

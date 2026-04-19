@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Layers, Target, Sparkles } from "lucide-react";
 import { formatPrice } from "@/lib/binance";
 import { cn } from "@/lib/utils";
+import { WinChanceBadge } from "@/components/WinChanceBadge";
 
 export interface IndicatorRow {
   name: string;
@@ -63,15 +64,21 @@ export function PlanDetails({ plan, side, currentPrice }: Props) {
   const risk = Math.abs(entryMid - plan.stop);
   const rrs = plan.targets.map((t) => (risk > 0 ? Math.abs(t - entryMid) / risk : 0));
 
+  // First-target R:R drives the heuristic win-chance badge
+  const firstRR = rrs[0] ?? 0;
+
   return (
     <div className="flex flex-col gap-3">
       {/* Summary */}
       <div className="panel p-3">
-        <div className="mb-1.5 flex items-center gap-2">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <Sparkles className="size-3.5 text-primary" />
           <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
             AI Thesis
           </h3>
+          {side !== "neutral" && firstRR > 0 && (
+            <WinChanceBadge conviction={plan.conviction} risk_reward={firstRR} size="md" />
+          )}
           <span className="ml-auto rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-primary">
             {plan.timeHorizon}
           </span>
