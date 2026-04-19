@@ -4,6 +4,8 @@ import { NavLink } from "@/components/NavLink";
 import { TickerBar } from "@/components/TickerBar";
 import { FavoritesStrip } from "@/components/FavoritesStrip";
 import { FootprintAlertsWatcher } from "@/components/FootprintAlertsWatcher";
+import { PriceAlertsWatcher } from "@/components/PriceAlertsWatcher";
+import { PortfolioSettings } from "@/components/PortfolioSettings";
 import { AnalystChatDock } from "@/components/AnalystChatDock";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +40,8 @@ export function AppLayout() {
           </div>
         </div>
         <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <PortfolioSettings />
+          <PriceAlertsWatcher />
           <FootprintAlertsWatcher />
           <span className="hidden items-center gap-1.5 md:flex">
             <Wifi className="size-3 text-bull" /> Binance · Live
