@@ -341,7 +341,7 @@ function PlanView({ plan, symbol, interval, positionUsd, currentPrice, side, get
         </div>
       </div>
 
-      <PlanDetails plan={plan} side={side} currentPrice={currentPrice} />
+      <PlanDetails plan={plan} side={side} currentPrice={currentPrice} symbol={symbol} mode="spot" />
 
       <p className="font-mono text-[10px] text-muted-foreground">
         ⚠ AI-generated educational analysis. Always size positions you can afford to lose. Not financial advice.
