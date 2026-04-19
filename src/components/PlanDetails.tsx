@@ -2,6 +2,7 @@ import { TrendingUp, TrendingDown, Minus, AlertTriangle, Layers, Target, Sparkle
 import { formatPrice } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { RiskGuidance } from "@/components/RiskGuidance";
 
 export interface IndicatorRow {
   name: string;
