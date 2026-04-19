@@ -77,21 +77,31 @@ function atr(highs: number[], lows: number[], closes: number[], period = 14): nu
 }
 
 // ---------------- universe ----------------
-async function topPerpsByVolume(limit = 30): Promise<string[]> {
-  const r = await fetch(`${FAPI}/fapi/v1/ticker/24hr`);
-  if (!r.ok) throw new Error("ticker24hr failed");
-  const arr: any[] = await r.json();
+async function fetchTopTickers(limit = 30): Promise<any[]> {
+  // Try futures first; if blocked, fall back to spot 24hr ticker (still ranks by volume well).
+  const r = await fetchWithFailover(FAPI_HOSTS, "/fapi/v1/ticker/24hr");
+  if (r) {
+    const arr: any[] = await r.json();
+    return arr
+      .filter((t) => t.symbol.endsWith("USDT") && !t.symbol.includes("_"))
+      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, limit);
+  }
+  const r2 = await fetchWithFailover(SPOT_HOSTS, "/api/v3/ticker/24hr");
+  if (!r2) throw new Error("All Binance hosts blocked (futures + spot)");
+  const arr: any[] = await r2.json();
   return arr
-    .filter((t) => t.symbol.endsWith("USDT") && !t.symbol.includes("_"))
+    .filter((t) => t.symbol.endsWith("USDT") && !t.symbol.includes("UPUSDT") && !t.symbol.includes("DOWNUSDT") && !t.symbol.includes("BULLUSDT") && !t.symbol.includes("BEARUSDT"))
     .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-    .slice(0, limit)
-    .map((t) => t.symbol);
+    .slice(0, limit);
 }
 
 // ---------------- per-symbol metrics ----------------
 async function fetchKlines(symbol: string, interval: string, limit = 200) {
-  const r = await fetch(`${FAPI}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-  if (!r.ok) throw new Error(`klines ${symbol} ${interval}`);
+  // Prefer futures klines, fall back to spot.
+  let r = await fetchWithFailover(FAPI_HOSTS, `/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+  if (!r) r = await fetchWithFailover(SPOT_HOSTS, `/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+  if (!r) throw new Error(`klines blocked ${symbol} ${interval}`);
   const raw: any[][] = await r.json();
   return raw.map((k) => ({
     time: Math.floor(k[0] / 1000),
@@ -100,17 +110,17 @@ async function fetchKlines(symbol: string, interval: string, limit = 200) {
   }));
 }
 async function fetchFunding(symbol: string): Promise<number | null> {
+  const r = await fetchWithFailover(FAPI_HOSTS, `/fapi/v1/premiumIndex?symbol=${symbol}`);
+  if (!r) return null;
   try {
-    const r = await fetch(`${FAPI}/fapi/v1/premiumIndex?symbol=${symbol}`);
-    if (!r.ok) return null;
     const d = await r.json();
     return parseFloat(d.lastFundingRate);
   } catch { return null; }
 }
 async function fetchOIChange(symbol: string): Promise<number | null> {
+  const r = await fetchWithFailover(FAPI_HOSTS, `/futures/data/openInterestHist?symbol=${symbol}&period=1h&limit=24`);
+  if (!r) return null;
   try {
-    const r = await fetch(`${FAPI}/futures/data/openInterestHist?symbol=${symbol}&period=1h&limit=24`);
-    if (!r.ok) return null;
     const arr: any[] = await r.json();
     if (arr.length < 2) return null;
     const first = parseFloat(arr[0].sumOpenInterest);
@@ -120,10 +130,9 @@ async function fetchOIChange(symbol: string): Promise<number | null> {
   } catch { return null; }
 }
 async function fetchCVD(symbol: string): Promise<{ cvd: number; lastBuyRatio: number } | null> {
+  const r = await fetchWithFailover(SPOT_HOSTS, `/api/v3/klines?symbol=${symbol}&interval=5m&limit=48`);
+  if (!r) return null;
   try {
-    // Quick proxy: use last 60 1m klines taker buy vs total
-    const r = await fetch(`${BAPI}/api/v3/klines?symbol=${symbol}&interval=5m&limit=48`);
-    if (!r.ok) return null;
     const arr: any[][] = await r.json();
     let cvd = 0;
     let buy = 0, total = 0;
