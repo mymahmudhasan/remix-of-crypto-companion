@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, Sparkles, TrendingUp, TrendingDown, Loader2, AlertCircle, Target, Shield, Flame, Clock, Zap, ExternalLink } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignalsResponse, type PremiumSignal } from "@/lib/premium-signals";
 import { formatPrice } from "@/lib/binance";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
 import { SaveSignalButton } from "@/components/SaveSignalButton";
+import { SignalsFilterBar, DEFAULT_FILTERS, type SignalsFilterState } from "@/components/SignalsFilterBar";
 import { cn } from "@/lib/utils";
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 minutes
@@ -16,7 +17,22 @@ export default function Signals() {
   const [error, setError] = useState<string | null>(null);
   const [lastRun, setLastRun] = useState<Date | null>(null);
   const [nextRunIn, setNextRunIn] = useState<number>(REFRESH_MS);
+  const [filters, setFilters] = useState<SignalsFilterState>(DEFAULT_FILTERS);
   const timerRef = useRef<number | null>(null);
+
+  const visibleSignals = useMemo(() => {
+    if (!data) return [];
+    const filtered = data.signals.filter((s) => {
+      if (filters.side !== "all" && s.side !== filters.side) return false;
+      if (filters.timeframe !== "all" && s.timeframe !== filters.timeframe) return false;
+      if (s.conviction < filters.minConviction) return false;
+      return true;
+    });
+    return [...filtered].sort((a, b) => {
+      if (filters.sortBy === "risk_reward") return b.risk_reward - a.risk_reward;
+      return b.conviction - a.conviction;
+    });
+  }, [data, filters]);
 
   const run = async () => {
     setLoading(true);
@@ -97,6 +113,16 @@ export default function Signals() {
         </div>
       )}
 
+      {/* Filter & sort bar */}
+      {data && (
+        <SignalsFilterBar
+          value={filters}
+          onChange={setFilters}
+          totalCount={data.signals.length}
+          visibleCount={visibleSignals.length}
+        />
+      )}
+
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-3 scrollbar-thin">
         {error && (
@@ -117,9 +143,22 @@ export default function Signals() {
           </div>
         )}
 
-        {data && (
+        {data && visibleSignals.length === 0 && (
+          <div className="flex h-full flex-col items-center justify-center gap-2 font-mono text-xs text-muted-foreground">
+            <Filter className="size-5 opacity-60" />
+            <div>No signals match your filters</div>
+            <button
+              onClick={() => setFilters(DEFAULT_FILTERS)}
+              className="rounded border border-primary/40 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary hover:bg-primary/20"
+            >
+              Reset filters
+            </button>
+          </div>
+        )}
+
+        {data && visibleSignals.length > 0 && (
           <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-2">
-            {data.signals.map((s, i) => (
+            {visibleSignals.map((s, i) => (
               <SignalCard key={`${s.symbol}-${i}`} signal={s} onOpen={() => navigate(`/futures?symbol=${s.symbol}`)} />
             ))}
           </div>
