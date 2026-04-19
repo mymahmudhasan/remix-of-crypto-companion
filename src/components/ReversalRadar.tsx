@@ -8,6 +8,16 @@ type Timeframe = "15m" | "1h" | "4h";
 const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
 const REFRESH_MS = 5 * 60 * 1000;
 
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
+
 interface ReversalSetup {
   symbol: string;
   side: "long" | "short"; // long = bought at low, short = sold at high
