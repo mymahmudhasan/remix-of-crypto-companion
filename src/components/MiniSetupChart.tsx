@@ -64,7 +64,7 @@ export function MiniSetupChart({ symbol, interval = "1h", entryLow, entryHigh, s
     });
 
     let cancelled = false;
-    fetchKlines(symbol, interval, 80)
+    fetchKlinesAny(symbol, interval, 80)
       .then((klines) => {
         if (cancelled) return;
         const data: CandlestickData[] = klines.map((k) => ({
