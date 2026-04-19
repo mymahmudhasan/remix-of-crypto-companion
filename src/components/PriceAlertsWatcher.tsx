@@ -73,8 +73,8 @@ export function PriceAlertsWatcher() {
     if (!enabled || perm !== "granted" || plans.length === 0) return;
     const symbols = Array.from(new Set(plans.map((p) => p.symbol)));
     const unsub = subscribeMiniTickers(symbols, (t) => {
-      const sym = t.symbol;
-      const curr = t.price;
+      const sym = t.s;
+      const curr = parseFloat(t.c);
       const prev = prevPriceRef.current[sym];
       if (typeof prev === "number") {
         for (const p of plans.filter((x) => x.symbol === sym)) {
