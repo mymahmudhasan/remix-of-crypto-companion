@@ -1,8 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchKlines, fetch24h, formatPrice } from "@/lib/binance";
 import { rsi } from "@/lib/indicators";
-import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap } from "lucide-react";
+import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Timeframe = "15m" | "1h" | "4h";
+const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
+const REFRESH_MS = 5 * 60 * 1000;
+
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
 
 interface ReversalSetup {
   symbol: string;
@@ -46,9 +60,9 @@ async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
 
 const LOOKBACK = 50; // bars used to define "previous high/low"
 
-async function buildReversalSetup(symbol: string): Promise<ReversalSetup | null> {
+async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise<ReversalSetup | null> {
   try {
-    const klines = await fetchKlines(symbol, "1h", 120);
+    const klines = await fetchKlines(symbol, timeframe, 120);
     if (klines.length < LOOKBACK + 5) return null;
 
     const closes = klines.map((k) => k.close);
@@ -190,18 +204,23 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
   const [scanned, setScanned] = useState(0);
   const [universeSize, setUniverseSize] = useState(0);
   const [filter, setFilter] = useState<"all" | "bottom" | "top">("all");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+
+  const refresh = useCallback(() => setRefreshTick((t) => t + 1), []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setScanned(0);
+    setItems([]);
 
     (async () => {
       let universe: string[] = [];
       try {
         universe = await fetchTopUsdtUniverse(100);
       } catch {
-        // fallback to a small set if 24hr endpoint failed
         universe = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
       }
       if (cancelled) return;
@@ -212,7 +231,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
       for (let i = 0; i < universe.length; i += batchSize) {
         if (cancelled) return;
         const batch = universe.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map(buildReversalSetup));
+        const batchResults = await Promise.all(batch.map((s) => buildReversalSetup(s, timeframe)));
         batchResults.forEach((r) => r && results.push(r));
         if (!cancelled) {
           const sorted = [...results].sort((a, b) => b.reversalScore - a.reversalScore);
@@ -220,19 +239,28 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
           setScanned(Math.min(i + batchSize, universe.length));
         }
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+        setLastUpdated(Date.now());
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [timeframe, refreshTick]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const id = setInterval(() => refresh(), REFRESH_MS);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   const filtered = items.filter((it) => filter === "all" || it.type === filter);
 
   return (
     <div className="panel flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
           <Radar className="size-3.5 text-warning" />
           <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -248,31 +276,65 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
             </span>
           )}
         </div>
-        <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
-          {(["all", "bottom", "top"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
-                filter === f
-                  ? f === "bottom"
-                    ? "bg-bull/20 text-bull"
-                    : f === "top"
-                      ? "bg-bear/20 text-bear"
-                      : "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {f === "bottom" ? "Lows" : f === "top" ? "Highs" : "All"}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                className={cn(
+                  "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
+                  timeframe === tf
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title={`Scan on ${tf} candles`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+          <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
+            {(["all", "bottom", "top"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
+                  filter === f
+                    ? f === "bottom"
+                      ? "bg-bull/20 text-bull"
+                      : f === "top"
+                        ? "bg-bear/20 text-bear"
+                        : "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {f === "bottom" ? "Lows" : f === "top" ? "Highs" : "All"}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="flex items-center justify-center rounded-md border border-border bg-surface-elevated p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            title="Refresh scan now"
+          >
+            <RefreshCw className={cn("size-3", loading && "animate-spin")} />
+          </button>
         </div>
       </div>
 
-      <div className="border-b border-border bg-surface-elevated/40 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-        Coins breaking <span className="text-bear">prev high</span> or{" "}
-        <span className="text-bull">prev low</span> with reversal confirmation
+      <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-elevated/40 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
+        <span>
+          Coins breaking <span className="text-bear">prev high</span> or{" "}
+          <span className="text-bull">prev low</span> on {timeframe} with reversal confirmation
+        </span>
+        {lastUpdated && (
+          <span className="text-[9px] whitespace-nowrap">
+            Updated {timeAgo(lastUpdated)} · auto 5m
+          </span>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
