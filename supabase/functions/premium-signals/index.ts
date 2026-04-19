@@ -6,8 +6,27 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const FAPI = "https://fapi.binance.com";
-const BAPI = "https://api.binance.com";
+// Multiple Binance hosts — some are geo-blocked from Supabase edge regions, so we fail over.
+const FAPI_HOSTS = [
+  "https://fapi.binance.com",
+  "https://www.binance.com",          // serves /fapi via reverse proxy in many regions
+];
+const SPOT_HOSTS = [
+  "https://api.binance.com",
+  "https://data-api.binance.vision",   // Binance's read-only data mirror, rarely geo-blocked
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+];
+
+async function fetchWithFailover(hosts: string[], path: string): Promise<Response | null> {
+  for (const host of hosts) {
+    try {
+      const r = await fetch(`${host}${path}`, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (r.ok) return r;
+    } catch { /* try next */ }
+  }
+  return null;
+}
 
 // ---------------- math ----------------
 function ema(values: number[], period: number): number[] {
