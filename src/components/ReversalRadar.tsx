@@ -250,7 +250,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
 
   return (
     <div className="panel flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
           <Radar className="size-3.5 text-warning" />
           <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -266,31 +266,65 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
             </span>
           )}
         </div>
-        <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
-          {(["all", "bottom", "top"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
-                filter === f
-                  ? f === "bottom"
-                    ? "bg-bull/20 text-bull"
-                    : f === "top"
-                      ? "bg-bear/20 text-bear"
-                      : "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {f === "bottom" ? "Lows" : f === "top" ? "Highs" : "All"}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                className={cn(
+                  "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
+                  timeframe === tf
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title={`Scan on ${tf} candles`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+          <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
+            {(["all", "bottom", "top"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
+                  filter === f
+                    ? f === "bottom"
+                      ? "bg-bull/20 text-bull"
+                      : f === "top"
+                        ? "bg-bear/20 text-bear"
+                        : "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {f === "bottom" ? "Lows" : f === "top" ? "Highs" : "All"}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="flex items-center justify-center rounded-md border border-border bg-surface-elevated p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            title="Refresh scan now"
+          >
+            <RefreshCw className={cn("size-3", loading && "animate-spin")} />
+          </button>
         </div>
       </div>
 
-      <div className="border-b border-border bg-surface-elevated/40 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
-        Coins breaking <span className="text-bear">prev high</span> or{" "}
-        <span className="text-bull">prev low</span> with reversal confirmation
+      <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-elevated/40 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
+        <span>
+          Coins breaking <span className="text-bear">prev high</span> or{" "}
+          <span className="text-bull">prev low</span> on {timeframe} with reversal confirmation
+        </span>
+        {lastUpdated && (
+          <span className="text-[9px] whitespace-nowrap">
+            Updated {timeAgo(lastUpdated)} · auto 5m
+          </span>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
