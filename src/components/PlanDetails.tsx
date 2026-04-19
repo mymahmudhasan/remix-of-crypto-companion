@@ -144,6 +144,24 @@ export function PlanDetails({ plan, side, currentPrice, leverage, symbol, mode }
         timeHorizon={plan.timeHorizon}
       />
 
+      {/* Pro Analysis (lazy-loaded on user click) */}
+      {symbol && (
+        <ProAnalysisPanel
+          setup={{
+            symbol,
+            side,
+            entryLow: plan.entry.low,
+            entryHigh: plan.entry.high,
+            stop: plan.stop,
+            targets: plan.targets,
+            conviction: plan.conviction,
+            timeHorizon: plan.timeHorizon,
+            leverage,
+            mode,
+          }}
+        />
+      )}
+
       {/* Indicator breakdown table */}
       {plan.indicatorBreakdown?.length > 0 && (
         <div className="panel p-3">
