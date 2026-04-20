@@ -82,22 +82,27 @@ interface ReversalSetup {
 }
 
 // Stablecoin / wrapped pairs we don't want in the radar (no real reversal play)
-const EXCLUDE_BASES = new Set([
+// Always-excluded: stables, fiat, leveraged tokens
+const ALWAYS_EXCLUDE = new Set([
   "USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "PYUSD", "EURI", "EUR",
   "GBP", "AUD", "BRL", "TRY", "RUB", "PLN", "ZAR", "ARS", "MXN", "JPY",
-  // High-volatility meme / micro-cap pumps — excluded for low-risk focus
+]);
+
+// High-volatility meme / micro-cap pumps — excluded only in conservative/balanced
+const MEME_BASES = new Set([
   "PEPE", "SHIB", "FLOKI", "BONK", "WIF", "MEME", "PNUT", "GOAT", "ACT",
   "NEIRO", "TURBO", "BOME", "MOG", "POPCAT", "BRETT", "MEW", "PONKE",
   "TRUMP", "MELANIA", "FARTCOIN", "CHILLGUY", "MOODENG", "PEOPLE",
 ]);
 
-async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
+async function fetchTopUsdtUniverse(limit: number, excludeMemes: boolean): Promise<string[]> {
   const tickers = await fetch24h();
   return tickers
     .filter((t) => {
       if (!t.symbol.endsWith("USDT")) return false;
       const base = t.symbol.slice(0, -4);
-      if (EXCLUDE_BASES.has(base)) return false;
+      if (ALWAYS_EXCLUDE.has(base)) return false;
+      if (excludeMemes && MEME_BASES.has(base)) return false;
       // skip leveraged tokens (UP/DOWN/BULL/BEAR)
       if (/(UP|DOWN|BULL|BEAR)$/.test(base)) return false;
       return true;
@@ -109,7 +114,7 @@ async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
 
 const LOOKBACK = 50; // bars used to define "previous high/low"
 
-async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise<ReversalSetup | null> {
+async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile: RiskProfile): Promise<ReversalSetup | null> {
   try {
     const klines = await fetchKlines(symbol, timeframe, 120);
     if (klines.length < LOOKBACK + 5) return null;
@@ -139,20 +144,16 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise
     const atr = atrSlice.reduce((s, k) => s + (k.high - k.low), 0) / atrSlice.length;
     const atrPct = (atr / price) * 100;
 
-    // VOLATILITY GATE — reject erratic/high-flux pairs
-    // Per-timeframe ATR% caps (max acceptable bar volatility)
-    const maxAtrPct = timeframe === "15m" ? 1.5 : timeframe === "1h" ? 3.5 : 7;
-    if (atrPct > maxAtrPct) return null;
+    // VOLATILITY GATE — reject erratic/high-flux pairs (per risk profile)
+    if (atrPct > profile.atrCap[timeframe]) return null;
 
     // Reject bars with extreme single-candle moves (pump/dump, not reversal)
     const lastBarMovePct = (Math.abs(last.close - last.open) / last.open) * 100;
-    const maxBarMove = timeframe === "15m" ? 4 : timeframe === "1h" ? 7 : 12;
-    if (lastBarMovePct > maxBarMove) return null;
+    if (lastBarMovePct > profile.barMoveCap[timeframe]) return null;
 
     // Reject choppy ranges (no clear trend structure → whipsaw risk)
     const recentRangePct = ((Math.max(...highs.slice(-20)) - Math.min(...lows.slice(-20))) / price) * 100;
-    const maxRange = timeframe === "15m" ? 8 : timeframe === "1h" ? 18 : 35;
-    if (recentRangePct > maxRange) return null;
+    if (recentRangePct > profile.rangeCap[timeframe]) return null;
 
     const rsiArr = rsi(closes, 14);
     const lastRsi = rsiArr[rsiArr.length - 1] ?? 50;
