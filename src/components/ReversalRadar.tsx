@@ -71,6 +71,7 @@ interface ReversalSetup {
   prevExtreme: number; // previous high or low being broken
   distancePct: number; // how far past the previous extreme (negative = wicked back)
   rsi: number;
+  atrPct: number; // ATR as % of price — volatility gauge
   reversalScore: number; // 0-100, higher = better reversal odds
   entryLow: number;
   entryHigh: number;
@@ -221,7 +222,7 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
 
         setup = {
           symbol, side: "short", type: "top", price,
-          prevExtreme: prevHigh, distancePct, rsi: lastRsi, reversalScore: score,
+          prevExtreme: prevHigh, distancePct, rsi: lastRsi, atrPct, reversalScore: score,
           entryLow: Math.min(entryLow, entryHigh),
           entryHigh: Math.max(entryLow, entryHigh),
           stop, target1, target2, rr, reasons,
@@ -269,7 +270,7 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
 
         const candidate: ReversalSetup = {
           symbol, side: "long", type: "bottom", price,
-          prevExtreme: prevLow, distancePct, rsi: lastRsi, reversalScore: score,
+          prevExtreme: prevLow, distancePct, rsi: lastRsi, atrPct, reversalScore: score,
           entryLow: Math.min(entryLow, entryHigh),
           entryHigh: Math.max(entryLow, entryHigh),
           stop, target1, target2, rr, reasons,
@@ -504,7 +505,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-1 font-mono text-[10px]">
+              <div className="grid grid-cols-3 gap-1 font-mono text-[10px]">
                 <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">
                     {isBottom ? "Prev Low" : "Prev High"}
@@ -520,6 +521,28 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
                     )}
                   >
                     {it.rsi.toFixed(0)}
+                  </span>
+                </div>
+                <div
+                  className="flex items-center gap-1 justify-self-end"
+                  title={`ATR ${it.atrPct.toFixed(2)}% — ${
+                    it.atrPct < 1 ? "very stable" : it.atrPct < 2.5 ? "stable" : it.atrPct < 5 ? "moderate volatility" : "high volatility"
+                  }`}
+                >
+                  <span className="text-muted-foreground">Vol</span>
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-0.5 font-bold",
+                      it.atrPct < 1
+                        ? "bg-bull/15 text-bull"
+                        : it.atrPct < 2.5
+                          ? "bg-primary/15 text-primary"
+                          : it.atrPct < 5
+                            ? "bg-warning/15 text-warning"
+                            : "bg-bear/15 text-bear"
+                    )}
+                  >
+                    {it.atrPct.toFixed(1)}%
                   </span>
                 </div>
               </div>
