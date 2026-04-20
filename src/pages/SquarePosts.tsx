@@ -49,13 +49,50 @@ export default function SquarePosts() {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   };
 
+  // Waits briefly for the chart snapshot to be captured for a given index.
+  const waitForImage = async (idx: number, timeoutMs = 4000): Promise<string | null> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const img = await new Promise<string | null>((resolve) =>
+        setItems((prev) => {
+          resolve(prev[idx]?.imageDataUrl ?? null);
+          return prev;
+        }),
+      );
+      if (img) return img;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    return null;
+  };
+
+  const autoPublish = async (idx: number, post: SquarePost) => {
+    let settings;
+    try {
+      settings = await loadSquareSettings();
+    } catch {
+      return;
+    }
+    if (!settings.endpoint_url || !settings.api_key || !settings.enabled) return;
+    updateItem(idx, { publishing: true, publishError: null });
+    const img = await waitForImage(idx);
+    try {
+      await publishSquarePost(post, img);
+      updateItem(idx, { publishing: false, published: true, publishError: null });
+      toast.success("Posted to Binance Square", { description: post.symbol });
+    } catch (e: any) {
+      updateItem(idx, { publishing: false, published: false, publishError: e.message || "Publish failed" });
+      toast.error("Auto-post failed", { description: e.message });
+    }
+  };
+
   const generateOne = async (idx: number) => {
     const item = items[idx];
     if (!item) return;
-    updateItem(idx, { loading: true, error: null });
+    updateItem(idx, { loading: true, error: null, published: false, publishError: null });
     try {
       const post = await generateSquarePost(item.signal);
       updateItem(idx, { post, loading: false });
+      await autoPublish(idx, post);
     } catch (e: any) {
       updateItem(idx, { loading: false, error: e.message || "Failed" });
       toast.error("Generation failed", { description: e.message });
@@ -66,13 +103,13 @@ export default function SquarePosts() {
     setBatchRunning(true);
     let ok = 0;
     let fail = 0;
-    // Sequential to respect rate limits
     for (let i = 0; i < items.length; i++) {
       if (items[i].post) continue;
       try {
         const post = await generateSquarePost(items[i].signal);
         setItems((prev) => prev.map((it, j) => (j === i ? { ...it, post, loading: false, error: null } : it)));
         ok++;
+        await autoPublish(i, post);
         await new Promise((r) => setTimeout(r, 800));
       } catch (e: any) {
         setItems((prev) =>
