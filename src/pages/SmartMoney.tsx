@@ -15,7 +15,7 @@ import { SCANNER_UNIVERSE, tickerToRow } from "@/lib/scanner";
 import { useFavorites } from "@/hooks/use-favorites";
 import { CandleChart } from "@/components/CandleChart";
 import { SaveCoachButton, type CoachPayload } from "@/components/SaveCoachButton";
-import { NewsPanel } from "@/components/NewsPanel";
+
 import { RiskGuidance } from "@/components/RiskGuidance";
 import { ProAnalysisPanel } from "@/components/ProAnalysisPanel";
 import { TradeSetupSummary } from "@/components/TradeSetupSummary";
