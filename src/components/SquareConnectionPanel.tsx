@@ -72,9 +72,8 @@ export function SquareConnectionPanel() {
         last_test_message: r.message,
       });
       setSettings(updated);
-      r.ok
-        ? toast.success("Connection OK", { description: r.message })
-        : toast.error("Connection failed", { description: r.message });
+      if (r.ok) toast.success("Connection OK", { description: r.message });
+      else toast.error("Connection failed", { description: r.message });
     } catch (e: any) {
       toast.error("Test failed", { description: e.message });
     } finally {
