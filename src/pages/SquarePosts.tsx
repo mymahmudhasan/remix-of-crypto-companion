@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Send, CheckCircle2,
+  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Send, CheckCircle2, XCircle,
 } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
 import { generateSquarePost, publishSquarePost, type SquarePost } from "@/lib/square-posts";
@@ -285,8 +285,26 @@ function PostCard({
                 {signal.side}
               </span>
             </div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              {signal.setup_name} · conviction {signal.conviction}
+            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span>{signal.setup_name} · conviction {signal.conviction}</span>
+              {item.publishing && (
+                <span className="flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                  <Send className="size-2.5 animate-pulse" /> posting
+                </span>
+              )}
+              {item.published && !item.publishing && (
+                <span className="flex items-center gap-1 rounded border border-bull/40 bg-bull/10 px-1.5 py-0.5 text-bull">
+                  <CheckCircle2 className="size-2.5" /> posted
+                </span>
+              )}
+              {item.publishError && !item.publishing && (
+                <span
+                  title={item.publishError}
+                  className="flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-destructive"
+                >
+                  <XCircle className="size-2.5" /> post failed
+                </span>
+              )}
             </div>
           </div>
         </div>
