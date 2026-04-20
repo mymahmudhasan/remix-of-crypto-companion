@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown,
+  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Send, CheckCircle2, XCircle,
 } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
-import { generateSquarePost, type SquarePost } from "@/lib/square-posts";
+import { generateSquarePost, publishSquarePost, type SquarePost } from "@/lib/square-posts";
+import { loadSquareSettings } from "@/lib/square-settings";
 import { snapshotChart } from "@/lib/snapshot-chart";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
 import { SquareConnectionPanel } from "@/components/SquareConnectionPanel";
@@ -16,6 +17,9 @@ interface QueueItem {
   imageDataUrl: string | null;
   loading: boolean;
   error: string | null;
+  publishing?: boolean;
+  published?: boolean;
+  publishError?: string | null;
 }
 
 export default function SquarePosts() {
@@ -45,13 +49,50 @@ export default function SquarePosts() {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   };
 
+  // Waits briefly for the chart snapshot to be captured for a given index.
+  const waitForImage = async (idx: number, timeoutMs = 4000): Promise<string | null> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const img = await new Promise<string | null>((resolve) =>
+        setItems((prev) => {
+          resolve(prev[idx]?.imageDataUrl ?? null);
+          return prev;
+        }),
+      );
+      if (img) return img;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    return null;
+  };
+
+  const autoPublish = async (idx: number, post: SquarePost) => {
+    let settings;
+    try {
+      settings = await loadSquareSettings();
+    } catch {
+      return;
+    }
+    if (!settings.endpoint_url || !settings.api_key || !settings.enabled) return;
+    updateItem(idx, { publishing: true, publishError: null });
+    const img = await waitForImage(idx);
+    try {
+      await publishSquarePost(post, img);
+      updateItem(idx, { publishing: false, published: true, publishError: null });
+      toast.success("Posted to Binance Square", { description: post.symbol });
+    } catch (e: any) {
+      updateItem(idx, { publishing: false, published: false, publishError: e.message || "Publish failed" });
+      toast.error("Auto-post failed", { description: e.message });
+    }
+  };
+
   const generateOne = async (idx: number) => {
     const item = items[idx];
     if (!item) return;
-    updateItem(idx, { loading: true, error: null });
+    updateItem(idx, { loading: true, error: null, published: false, publishError: null });
     try {
       const post = await generateSquarePost(item.signal);
       updateItem(idx, { post, loading: false });
+      await autoPublish(idx, post);
     } catch (e: any) {
       updateItem(idx, { loading: false, error: e.message || "Failed" });
       toast.error("Generation failed", { description: e.message });
@@ -62,13 +103,13 @@ export default function SquarePosts() {
     setBatchRunning(true);
     let ok = 0;
     let fail = 0;
-    // Sequential to respect rate limits
     for (let i = 0; i < items.length; i++) {
       if (items[i].post) continue;
       try {
         const post = await generateSquarePost(items[i].signal);
         setItems((prev) => prev.map((it, j) => (j === i ? { ...it, post, loading: false, error: null } : it)));
         ok++;
+        await autoPublish(i, post);
         await new Promise((r) => setTimeout(r, 800));
       } catch (e: any) {
         setItems((prev) =>
@@ -244,8 +285,26 @@ function PostCard({
                 {signal.side}
               </span>
             </div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              {signal.setup_name} · conviction {signal.conviction}
+            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span>{signal.setup_name} · conviction {signal.conviction}</span>
+              {item.publishing && (
+                <span className="flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
+                  <Send className="size-2.5 animate-pulse" /> posting
+                </span>
+              )}
+              {item.published && !item.publishing && (
+                <span className="flex items-center gap-1 rounded border border-bull/40 bg-bull/10 px-1.5 py-0.5 text-bull">
+                  <CheckCircle2 className="size-2.5" /> posted
+                </span>
+              )}
+              {item.publishError && !item.publishing && (
+                <span
+                  title={item.publishError}
+                  className="flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-destructive"
+                >
+                  <XCircle className="size-2.5" /> post failed
+                </span>
+              )}
             </div>
           </div>
         </div>
