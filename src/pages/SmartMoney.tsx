@@ -18,6 +18,7 @@ import { SaveCoachButton, type CoachPayload } from "@/components/SaveCoachButton
 import { NewsPanel } from "@/components/NewsPanel";
 import { RiskGuidance } from "@/components/RiskGuidance";
 import { ProAnalysisPanel } from "@/components/ProAnalysisPanel";
+import { TradeSetupSummary } from "@/components/TradeSetupSummary";
 import { cn } from "@/lib/utils";
 
 const MTF_INTERVALS = ["1h", "4h", "1d"];
