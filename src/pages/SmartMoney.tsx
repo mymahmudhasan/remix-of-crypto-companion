@@ -536,13 +536,15 @@ function FootprintsPanel({
 }
 
 function CoachView({
-  coach, symbol, interval, mode, entryPrice, onRerun, getChartEl,
+  coach, symbol, interval, mode, entryPrice, setupName, topFootprints, onRerun, getChartEl,
 }: {
   coach: CoachPayload;
   symbol: string;
   interval: string;
   mode: "spot" | "futures";
   entryPrice: number;
+  setupName: string;
+  topFootprints: string[];
   onRerun: () => void;
   getChartEl: () => HTMLElement | null;
 }) {
