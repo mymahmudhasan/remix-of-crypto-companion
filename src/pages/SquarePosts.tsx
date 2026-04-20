@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Send, CheckCircle2, XCircle,
+  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Eye,
 } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
-import { generateSquarePost, publishSquarePost, type SquarePost } from "@/lib/square-posts";
-import { loadSquareSettings } from "@/lib/square-settings";
+import { generateSquarePost, type SquarePost } from "@/lib/square-posts";
 import { snapshotChart } from "@/lib/snapshot-chart";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
-import { SquareConnectionPanel } from "@/components/SquareConnectionPanel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -17,9 +15,6 @@ interface QueueItem {
   imageDataUrl: string | null;
   loading: boolean;
   error: string | null;
-  publishing?: boolean;
-  published?: boolean;
-  publishError?: string | null;
 }
 
 export default function SquarePosts() {
@@ -49,50 +44,13 @@ export default function SquarePosts() {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   };
 
-  // Waits briefly for the chart snapshot to be captured for a given index.
-  const waitForImage = async (idx: number, timeoutMs = 4000): Promise<string | null> => {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      const img = await new Promise<string | null>((resolve) =>
-        setItems((prev) => {
-          resolve(prev[idx]?.imageDataUrl ?? null);
-          return prev;
-        }),
-      );
-      if (img) return img;
-      await new Promise((r) => setTimeout(r, 300));
-    }
-    return null;
-  };
-
-  const autoPublish = async (idx: number, post: SquarePost) => {
-    let settings;
-    try {
-      settings = await loadSquareSettings();
-    } catch {
-      return;
-    }
-    if (!settings.endpoint_url || !settings.api_key || !settings.enabled) return;
-    updateItem(idx, { publishing: true, publishError: null });
-    const img = await waitForImage(idx);
-    try {
-      await publishSquarePost(post, img);
-      updateItem(idx, { publishing: false, published: true, publishError: null });
-      toast.success("Posted to Binance Square", { description: post.symbol });
-    } catch (e: any) {
-      updateItem(idx, { publishing: false, published: false, publishError: e.message || "Publish failed" });
-      toast.error("Auto-post failed", { description: e.message });
-    }
-  };
-
   const generateOne = async (idx: number) => {
     const item = items[idx];
     if (!item) return;
-    updateItem(idx, { loading: true, error: null, published: false, publishError: null });
+    updateItem(idx, { loading: true, error: null });
     try {
       const post = await generateSquarePost(item.signal);
       updateItem(idx, { post, loading: false });
-      await autoPublish(idx, post);
     } catch (e: any) {
       updateItem(idx, { loading: false, error: e.message || "Failed" });
       toast.error("Generation failed", { description: e.message });
@@ -109,7 +67,6 @@ export default function SquarePosts() {
         const post = await generateSquarePost(items[i].signal);
         setItems((prev) => prev.map((it, j) => (j === i ? { ...it, post, loading: false, error: null } : it)));
         ok++;
-        await autoPublish(i, post);
         await new Promise((r) => setTimeout(r, 800));
       } catch (e: any) {
         setItems((prev) =>
@@ -138,10 +95,10 @@ export default function SquarePosts() {
           </div>
           <div className="leading-tight">
             <h2 className="font-mono text-sm font-bold uppercase tracking-wider text-foreground neon-text">
-              Binance Square · Post Queue
+              Binance Square · Post Studio
             </h2>
             <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              {stats.ready}/{stats.total} ready · 200+ words · 5 hashtags · chart image · copy & paste to Binance
+              {stats.ready}/{stats.total} ready · hook + 200+ words · 5 hashtags · chart image
             </p>
           </div>
         </div>
@@ -165,12 +122,24 @@ export default function SquarePosts() {
         </div>
       </div>
 
-      {/* Connection */}
-      <SquareConnectionPanel />
+      {/* Growth tips — mined from what actually trends on Binance Square */}
+      <div className="shrink-0 border-b border-border bg-surface/30 px-4 py-2">
+        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+          <Eye className="size-3" /> Views playbook
+        </div>
+        <ul className="mt-1 grid gap-x-4 gap-y-0.5 font-mono text-[10px] leading-relaxed text-muted-foreground md:grid-cols-2">
+          <li>• Lead with <span className="text-foreground">$TICKER + a number</span> (target %, R:R, timeframe)</li>
+          <li>• Post in the Dhaka <span className="text-foreground">4–8 PM</span> window (global prime time)</li>
+          <li>• Always attach the <span className="text-foreground">chart image</span> — image posts out-perform ~3×</li>
+          <li>• Use <span className="text-foreground">5 tags</span>: #COIN · #Binance · one trend (#BTC/#Altseason) · #Trading · setup</li>
+          <li>• Put <span className="text-foreground">Entry / Stop / Targets</span> as clean numbers, not prose</li>
+          <li>• End with a <span className="text-foreground">question</span> (“Are you long or short?”) to farm comments</li>
+        </ul>
+      </div>
 
-      {/* Notice */}
+      {/* Manual-post notice */}
       <div className="shrink-0 border-b border-border bg-amber-500/5 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-amber-400/90">
-        ℹ️ Binance Square has no public posting API. Generate a post → copy text + download image → paste into the Binance app.
+        ℹ️ Manual posting mode — generate → <span className="text-amber-300">Copy text</span> + <span className="text-amber-300">download image</span> → paste into the Binance app.
       </div>
 
       {/* Body */}
@@ -285,26 +254,8 @@ function PostCard({
                 {signal.side}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              <span>{signal.setup_name} · conviction {signal.conviction}</span>
-              {item.publishing && (
-                <span className="flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-primary">
-                  <Send className="size-2.5 animate-pulse" /> posting
-                </span>
-              )}
-              {item.published && !item.publishing && (
-                <span className="flex items-center gap-1 rounded border border-bull/40 bg-bull/10 px-1.5 py-0.5 text-bull">
-                  <CheckCircle2 className="size-2.5" /> posted
-                </span>
-              )}
-              {item.publishError && !item.publishing && (
-                <span
-                  title={item.publishError}
-                  className="flex items-center gap-1 rounded border border-destructive/40 bg-destructive/10 px-1.5 py-0.5 text-destructive"
-                >
-                  <XCircle className="size-2.5" /> post failed
-                </span>
-              )}
+            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              {signal.setup_name} · conviction {signal.conviction}
             </div>
           </div>
         </div>
