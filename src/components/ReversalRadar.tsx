@@ -8,6 +8,51 @@ type Timeframe = "15m" | "1h" | "4h";
 const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
 const REFRESH_MS = 5 * 60 * 1000;
 
+type Risk = "conservative" | "balanced" | "aggressive";
+const RISK_LEVELS: Risk[] = ["conservative", "balanced", "aggressive"];
+
+interface RiskProfile {
+  /** Max acceptable ATR% per timeframe */
+  atrCap: Record<Timeframe, number>;
+  /** Max acceptable single-bar move % per timeframe */
+  barMoveCap: Record<Timeframe, number>;
+  /** Max 20-bar range % per timeframe */
+  rangeCap: Record<Timeframe, number>;
+  /** Exclude meme/micro-cap tokens */
+  excludeMemes: boolean;
+  /** Min reversal score to display */
+  minScore: number;
+  /** Min risk:reward */
+  minRR: number;
+}
+
+const RISK_PROFILES: Record<Risk, RiskProfile> = {
+  conservative: {
+    atrCap:     { "15m": 1.0, "1h": 2.5, "4h": 5 },
+    barMoveCap: { "15m": 2.5, "1h": 5,   "4h": 9 },
+    rangeCap:   { "15m": 6,   "1h": 14,  "4h": 28 },
+    excludeMemes: true,
+    minScore: 70,
+    minRR: 2.0,
+  },
+  balanced: {
+    atrCap:     { "15m": 1.5, "1h": 3.5, "4h": 7 },
+    barMoveCap: { "15m": 4,   "1h": 7,   "4h": 12 },
+    rangeCap:   { "15m": 8,   "1h": 18,  "4h": 35 },
+    excludeMemes: true,
+    minScore: 60,
+    minRR: 1.8,
+  },
+  aggressive: {
+    atrCap:     { "15m": 3,   "1h": 6,   "4h": 12 },
+    barMoveCap: { "15m": 8,   "1h": 14,  "4h": 22 },
+    rangeCap:   { "15m": 15,  "1h": 30,  "4h": 60 },
+    excludeMemes: false,
+    minScore: 45,
+    minRR: 1.3,
+  },
+};
+
 function timeAgo(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 5) return "just now";
