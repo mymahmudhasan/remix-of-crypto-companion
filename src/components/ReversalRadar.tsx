@@ -222,7 +222,7 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
 
         setup = {
           symbol, side: "short", type: "top", price,
-          prevExtreme: prevHigh, distancePct, rsi: lastRsi, reversalScore: score,
+          prevExtreme: prevHigh, distancePct, rsi: lastRsi, atrPct, reversalScore: score,
           entryLow: Math.min(entryLow, entryHigh),
           entryHigh: Math.max(entryLow, entryHigh),
           stop, target1, target2, rr, reasons,
@@ -270,7 +270,7 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
 
         const candidate: ReversalSetup = {
           symbol, side: "long", type: "bottom", price,
-          prevExtreme: prevLow, distancePct, rsi: lastRsi, reversalScore: score,
+          prevExtreme: prevLow, distancePct, rsi: lastRsi, atrPct, reversalScore: score,
           entryLow: Math.min(entryLow, entryHigh),
           entryHigh: Math.max(entryLow, entryHigh),
           stop, target1, target2, rr, reasons,
