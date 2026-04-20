@@ -40,6 +40,10 @@ interface ReversalSetup {
 const EXCLUDE_BASES = new Set([
   "USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "PYUSD", "EURI", "EUR",
   "GBP", "AUD", "BRL", "TRY", "RUB", "PLN", "ZAR", "ARS", "MXN", "JPY",
+  // High-volatility meme / micro-cap pumps — excluded for low-risk focus
+  "PEPE", "SHIB", "FLOKI", "BONK", "WIF", "MEME", "PNUT", "GOAT", "ACT",
+  "NEIRO", "TURBO", "BOME", "MOG", "POPCAT", "BRETT", "MEW", "PONKE",
+  "TRUMP", "MELANIA", "FARTCOIN", "CHILLGUY", "MOODENG", "PEOPLE",
 ]);
 
 async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
