@@ -18,6 +18,7 @@ import { SaveCoachButton, type CoachPayload } from "@/components/SaveCoachButton
 import { NewsPanel } from "@/components/NewsPanel";
 import { RiskGuidance } from "@/components/RiskGuidance";
 import { ProAnalysisPanel } from "@/components/ProAnalysisPanel";
+import { TradeSetupSummary } from "@/components/TradeSetupSummary";
 import { cn } from "@/lib/utils";
 
 const MTF_INTERVALS = ["1h", "4h", "1d"];
@@ -443,6 +444,8 @@ export default function SmartMoney() {
                   interval={interval}
                   mode={mode}
                   entryPrice={snap?.price ?? 0}
+                  setupName={fps[0]?.label ?? (detailBias.bias !== "neutral" ? `${detailBias.bias.toUpperCase()} Footprint Setup` : "Technical Setup")}
+                  topFootprints={fps.slice(0, 4).map((f) => f.detail)}
                   onRerun={runCoach}
                   getChartEl={() => chartWrapRef.current}
                 />
@@ -533,13 +536,15 @@ function FootprintsPanel({
 }
 
 function CoachView({
-  coach, symbol, interval, mode, entryPrice, onRerun, getChartEl,
+  coach, symbol, interval, mode, entryPrice, setupName, topFootprints, onRerun, getChartEl,
 }: {
   coach: CoachPayload;
   symbol: string;
   interval: string;
   mode: "spot" | "futures";
   entryPrice: number;
+  setupName: string;
+  topFootprints: string[];
   onRerun: () => void;
   getChartEl: () => HTMLElement | null;
 }) {
@@ -578,6 +583,23 @@ function CoachView({
           <div className="font-mono text-[10px] text-muted-foreground">Checklist {passes}/{total}</div>
         </div>
       </div>
+
+      {/* Trade-setup guideline card (Signals-tab style) */}
+      <TradeSetupSummary
+        symbol={symbol}
+        side={coach.side}
+        setupName={setupName}
+        timeframe={interval}
+        leverage={coach.levels.leverage}
+        conviction={coach.confidence}
+        entryLow={coach.levels.entryLow}
+        entryHigh={coach.levels.entryHigh}
+        stop={coach.levels.stop}
+        targets={coach.levels.targets}
+        reasoning={[coach.headline, ...topFootprints].filter(Boolean).slice(0, 5)}
+        trigger={coach.playbook?.[0]?.action}
+        invalidation={coach.invalidation}
+      />
 
       {/* Levels strip */}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
