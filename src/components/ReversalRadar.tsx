@@ -297,6 +297,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
   const [universeSize, setUniverseSize] = useState(0);
   const [filter, setFilter] = useState<"all" | "bottom" | "top">("all");
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  const [risk, setRisk] = useState<Risk>("balanced");
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
@@ -304,6 +305,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
 
   useEffect(() => {
     let cancelled = false;
+    const profile = RISK_PROFILES[risk];
     setLoading(true);
     setScanned(0);
     setItems([]);
@@ -311,7 +313,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
     (async () => {
       let universe: string[] = [];
       try {
-        universe = await fetchTopUsdtUniverse(100);
+        universe = await fetchTopUsdtUniverse(100, profile.excludeMemes);
       } catch {
         universe = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
       }
@@ -323,7 +325,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
       for (let i = 0; i < universe.length; i += batchSize) {
         if (cancelled) return;
         const batch = universe.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map((s) => buildReversalSetup(s, timeframe)));
+        const batchResults = await Promise.all(batch.map((s) => buildReversalSetup(s, timeframe, profile)));
         batchResults.forEach((r) => r && results.push(r));
         if (!cancelled) {
           const sorted = [...results].sort((a, b) => b.reversalScore - a.reversalScore);
@@ -340,7 +342,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
     return () => {
       cancelled = true;
     };
-  }, [timeframe, refreshTick]);
+  }, [timeframe, risk, refreshTick]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
