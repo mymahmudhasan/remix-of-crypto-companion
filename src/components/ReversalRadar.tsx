@@ -366,7 +366,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {filtered.length === 0 && !loading && (
           <div className="flex h-full items-center justify-center px-4 text-center font-mono text-xs text-muted-foreground">
-            No high-quality reversal setups right now. Market trending — wait for exhaustion.
+            No A+ reversal setups right now. Strict filters active — patience pays.
           </div>
         )}
         {filtered.map((it) => {
