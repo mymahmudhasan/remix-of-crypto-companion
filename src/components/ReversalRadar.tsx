@@ -8,6 +8,51 @@ type Timeframe = "15m" | "1h" | "4h";
 const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
 const REFRESH_MS = 5 * 60 * 1000;
 
+type Risk = "conservative" | "balanced" | "aggressive";
+const RISK_LEVELS: Risk[] = ["conservative", "balanced", "aggressive"];
+
+interface RiskProfile {
+  /** Max acceptable ATR% per timeframe */
+  atrCap: Record<Timeframe, number>;
+  /** Max acceptable single-bar move % per timeframe */
+  barMoveCap: Record<Timeframe, number>;
+  /** Max 20-bar range % per timeframe */
+  rangeCap: Record<Timeframe, number>;
+  /** Exclude meme/micro-cap tokens */
+  excludeMemes: boolean;
+  /** Min reversal score to display */
+  minScore: number;
+  /** Min risk:reward */
+  minRR: number;
+}
+
+const RISK_PROFILES: Record<Risk, RiskProfile> = {
+  conservative: {
+    atrCap:     { "15m": 1.0, "1h": 2.5, "4h": 5 },
+    barMoveCap: { "15m": 2.5, "1h": 5,   "4h": 9 },
+    rangeCap:   { "15m": 6,   "1h": 14,  "4h": 28 },
+    excludeMemes: true,
+    minScore: 70,
+    minRR: 2.0,
+  },
+  balanced: {
+    atrCap:     { "15m": 1.5, "1h": 3.5, "4h": 7 },
+    barMoveCap: { "15m": 4,   "1h": 7,   "4h": 12 },
+    rangeCap:   { "15m": 8,   "1h": 18,  "4h": 35 },
+    excludeMemes: true,
+    minScore: 60,
+    minRR: 1.8,
+  },
+  aggressive: {
+    atrCap:     { "15m": 3,   "1h": 6,   "4h": 12 },
+    barMoveCap: { "15m": 8,   "1h": 14,  "4h": 22 },
+    rangeCap:   { "15m": 15,  "1h": 30,  "4h": 60 },
+    excludeMemes: false,
+    minScore: 45,
+    minRR: 1.3,
+  },
+};
+
 function timeAgo(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 5) return "just now";
@@ -37,22 +82,27 @@ interface ReversalSetup {
 }
 
 // Stablecoin / wrapped pairs we don't want in the radar (no real reversal play)
-const EXCLUDE_BASES = new Set([
+// Always-excluded: stables, fiat, leveraged tokens
+const ALWAYS_EXCLUDE = new Set([
   "USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "PYUSD", "EURI", "EUR",
   "GBP", "AUD", "BRL", "TRY", "RUB", "PLN", "ZAR", "ARS", "MXN", "JPY",
-  // High-volatility meme / micro-cap pumps — excluded for low-risk focus
+]);
+
+// High-volatility meme / micro-cap pumps — excluded only in conservative/balanced
+const MEME_BASES = new Set([
   "PEPE", "SHIB", "FLOKI", "BONK", "WIF", "MEME", "PNUT", "GOAT", "ACT",
   "NEIRO", "TURBO", "BOME", "MOG", "POPCAT", "BRETT", "MEW", "PONKE",
   "TRUMP", "MELANIA", "FARTCOIN", "CHILLGUY", "MOODENG", "PEOPLE",
 ]);
 
-async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
+async function fetchTopUsdtUniverse(limit: number, excludeMemes: boolean): Promise<string[]> {
   const tickers = await fetch24h();
   return tickers
     .filter((t) => {
       if (!t.symbol.endsWith("USDT")) return false;
       const base = t.symbol.slice(0, -4);
-      if (EXCLUDE_BASES.has(base)) return false;
+      if (ALWAYS_EXCLUDE.has(base)) return false;
+      if (excludeMemes && MEME_BASES.has(base)) return false;
       // skip leveraged tokens (UP/DOWN/BULL/BEAR)
       if (/(UP|DOWN|BULL|BEAR)$/.test(base)) return false;
       return true;
@@ -64,7 +114,7 @@ async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
 
 const LOOKBACK = 50; // bars used to define "previous high/low"
 
-async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise<ReversalSetup | null> {
+async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile: RiskProfile): Promise<ReversalSetup | null> {
   try {
     const klines = await fetchKlines(symbol, timeframe, 120);
     if (klines.length < LOOKBACK + 5) return null;
@@ -94,20 +144,16 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise
     const atr = atrSlice.reduce((s, k) => s + (k.high - k.low), 0) / atrSlice.length;
     const atrPct = (atr / price) * 100;
 
-    // VOLATILITY GATE — reject erratic/high-flux pairs
-    // Per-timeframe ATR% caps (max acceptable bar volatility)
-    const maxAtrPct = timeframe === "15m" ? 1.5 : timeframe === "1h" ? 3.5 : 7;
-    if (atrPct > maxAtrPct) return null;
+    // VOLATILITY GATE — reject erratic/high-flux pairs (per risk profile)
+    if (atrPct > profile.atrCap[timeframe]) return null;
 
     // Reject bars with extreme single-candle moves (pump/dump, not reversal)
     const lastBarMovePct = (Math.abs(last.close - last.open) / last.open) * 100;
-    const maxBarMove = timeframe === "15m" ? 4 : timeframe === "1h" ? 7 : 12;
-    if (lastBarMovePct > maxBarMove) return null;
+    if (lastBarMovePct > profile.barMoveCap[timeframe]) return null;
 
     // Reject choppy ranges (no clear trend structure → whipsaw risk)
     const recentRangePct = ((Math.max(...highs.slice(-20)) - Math.min(...lows.slice(-20))) / price) * 100;
-    const maxRange = timeframe === "15m" ? 8 : timeframe === "1h" ? 18 : 35;
-    if (recentRangePct > maxRange) return null;
+    if (recentRangePct > profile.rangeCap[timeframe]) return null;
 
     const rsiArr = rsi(closes, 14);
     const lastRsi = rsiArr[rsiArr.length - 1] ?? 50;
@@ -233,10 +279,10 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise
     }
 
     if (!setup) return null;
-    // Quality gates: high score, healthy R:R, sane stop distance (avoid micro-stops in chop)
+    // Quality gates per profile
     const stopDistPct = (Math.abs(setup.price - setup.stop) / setup.price) * 100;
-    if (setup.reversalScore < 60) return null;
-    if (setup.rr < 1.8) return null;
+    if (setup.reversalScore < profile.minScore) return null;
+    if (setup.rr < profile.minRR) return null;
     if (stopDistPct < 0.3 || stopDistPct > 8) return null;
     return setup;
   } catch {
@@ -251,6 +297,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
   const [universeSize, setUniverseSize] = useState(0);
   const [filter, setFilter] = useState<"all" | "bottom" | "top">("all");
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  const [risk, setRisk] = useState<Risk>("balanced");
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
@@ -258,6 +305,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
 
   useEffect(() => {
     let cancelled = false;
+    const profile = RISK_PROFILES[risk];
     setLoading(true);
     setScanned(0);
     setItems([]);
@@ -265,7 +313,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
     (async () => {
       let universe: string[] = [];
       try {
-        universe = await fetchTopUsdtUniverse(100);
+        universe = await fetchTopUsdtUniverse(100, profile.excludeMemes);
       } catch {
         universe = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
       }
@@ -277,7 +325,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
       for (let i = 0; i < universe.length; i += batchSize) {
         if (cancelled) return;
         const batch = universe.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map((s) => buildReversalSetup(s, timeframe)));
+        const batchResults = await Promise.all(batch.map((s) => buildReversalSetup(s, timeframe, profile)));
         batchResults.forEach((r) => r && results.push(r));
         if (!cancelled) {
           const sorted = [...results].sort((a, b) => b.reversalScore - a.reversalScore);
@@ -294,7 +342,7 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
     return () => {
       cancelled = true;
     };
-  }, [timeframe, refreshTick]);
+  }, [timeframe, risk, refreshTick]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -323,6 +371,28 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated" title="Risk profile — controls volatility caps and meme exclusion">
+            {RISK_LEVELS.map((r) => {
+              const short = r === "conservative" ? "Safe" : r === "balanced" ? "Bal" : "Pro";
+              const activeCls =
+                r === "conservative" ? "bg-bull/25 text-bull"
+                : r === "balanced" ? "bg-primary text-primary-foreground"
+                : "bg-warning/25 text-warning";
+              return (
+                <button
+                  key={r}
+                  onClick={() => setRisk(r)}
+                  className={cn(
+                    "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
+                    risk === r ? activeCls : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={`${r.charAt(0).toUpperCase() + r.slice(1)} risk profile`}
+                >
+                  {short}
+                </button>
+              );
+            })}
+          </div>
           <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
             {TIMEFRAMES.map((tf) => (
               <button
