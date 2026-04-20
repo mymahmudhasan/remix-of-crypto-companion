@@ -444,7 +444,7 @@ export default function SmartMoney() {
                   interval={interval}
                   mode={mode}
                   entryPrice={snap?.price ?? 0}
-                  setupName={fps[0]?.label ?? detailBias.bias !== "neutral" ? `${detailBias.bias.toUpperCase()} Footprint Setup` : "Technical Setup"}
+                  setupName={fps[0]?.label ?? (detailBias.bias !== "neutral" ? `${detailBias.bias.toUpperCase()} Footprint Setup` : "Technical Setup")}
                   topFootprints={fps.slice(0, 4).map((f) => f.detail)}
                   onRerun={runCoach}
                   getChartEl={() => chartWrapRef.current}
