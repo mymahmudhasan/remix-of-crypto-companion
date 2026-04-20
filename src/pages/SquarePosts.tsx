@@ -124,6 +124,9 @@ export default function SquarePosts() {
         </div>
       </div>
 
+      {/* Connection */}
+      <SquareConnectionPanel />
+
       {/* Notice */}
       <div className="shrink-0 border-b border-border bg-amber-500/5 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-amber-400/90">
         ℹ️ Binance Square has no public posting API. Generate a post → copy text + download image → paste into the Binance app.
