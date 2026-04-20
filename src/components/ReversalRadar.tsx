@@ -71,6 +71,7 @@ interface ReversalSetup {
   prevExtreme: number; // previous high or low being broken
   distancePct: number; // how far past the previous extreme (negative = wicked back)
   rsi: number;
+  atrPct: number; // ATR as % of price — volatility gauge
   reversalScore: number; // 0-100, higher = better reversal odds
   entryLow: number;
   entryHigh: number;
