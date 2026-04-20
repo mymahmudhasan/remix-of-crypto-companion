@@ -6,6 +6,7 @@ import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
 import { generateSquarePost, type SquarePost } from "@/lib/square-posts";
 import { snapshotChart } from "@/lib/snapshot-chart";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
+import { SquareConnectionPanel } from "@/components/SquareConnectionPanel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
