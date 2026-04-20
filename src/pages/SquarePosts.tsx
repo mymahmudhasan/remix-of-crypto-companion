@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown,
+  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Send, CheckCircle2,
 } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
-import { generateSquarePost, type SquarePost } from "@/lib/square-posts";
+import { generateSquarePost, publishSquarePost, type SquarePost } from "@/lib/square-posts";
+import { loadSquareSettings } from "@/lib/square-settings";
 import { snapshotChart } from "@/lib/snapshot-chart";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
 import { SquareConnectionPanel } from "@/components/SquareConnectionPanel";
@@ -16,6 +17,9 @@ interface QueueItem {
   imageDataUrl: string | null;
   loading: boolean;
   error: string | null;
+  publishing?: boolean;
+  published?: boolean;
+  publishError?: string | null;
 }
 
 export default function SquarePosts() {
