@@ -279,10 +279,10 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
     }
 
     if (!setup) return null;
-    // Quality gates: high score, healthy R:R, sane stop distance (avoid micro-stops in chop)
+    // Quality gates per profile
     const stopDistPct = (Math.abs(setup.price - setup.stop) / setup.price) * 100;
-    if (setup.reversalScore < 60) return null;
-    if (setup.rr < 1.8) return null;
+    if (setup.reversalScore < profile.minScore) return null;
+    if (setup.rr < profile.minRR) return null;
     if (stopDistPct < 0.3 || stopDistPct > 8) return null;
     return setup;
   } catch {
