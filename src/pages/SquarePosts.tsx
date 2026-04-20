@@ -6,6 +6,7 @@ import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
 import { generateSquarePost, type SquarePost } from "@/lib/square-posts";
 import { snapshotChart } from "@/lib/snapshot-chart";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
+import { SquareConnectionPanel } from "@/components/SquareConnectionPanel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -122,6 +123,9 @@ export default function SquarePosts() {
           </button>
         </div>
       </div>
+
+      {/* Connection */}
+      <SquareConnectionPanel />
 
       {/* Notice */}
       <div className="shrink-0 border-b border-border bg-amber-500/5 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-amber-400/90">
