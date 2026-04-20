@@ -458,7 +458,6 @@ export default function SmartMoney() {
             <div className="min-h-0 flex-1">
               <FootprintsPanel fps={fps} loading={detailLoading} error={detailError} fundingRate={fundingRate} mode={mode} />
             </div>
-            <NewsPanel symbol={selected} mode={mode} interval={interval} />
           </div>
         </div>
       </div>
