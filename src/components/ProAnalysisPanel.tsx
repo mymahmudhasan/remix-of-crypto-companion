@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
 import {
   Briefcase, Bell, Microscope, Zap, Coins, Shield, Loader2, Sparkles,
-  CheckCircle2, AlertTriangle, XCircle, RefreshCw,
+  CheckCircle2, AlertTriangle, XCircle, RefreshCw, MessageSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadPortfolio, portfolioContext } from "@/lib/portfolio";
 import { cn } from "@/lib/utils";
+import { SocialSentiment } from "@/components/SocialSentiment";
 
 export interface ProAnalysisSetup {
   symbol: string;
@@ -65,13 +66,14 @@ interface Analysis {
   risk_framework: RiskFramework;
 }
 
-type Tab = "portfolio" | "alerts" | "deepdive" | "signal" | "defi" | "risk";
+type Tab = "portfolio" | "alerts" | "deepdive" | "signal" | "social" | "defi" | "risk";
 
 const TABS: { id: Tab; label: string; icon: typeof Briefcase }[] = [
   { id: "portfolio", label: "Portfolio Fit", icon: Briefcase },
   { id: "alerts", label: "Entry/Exit", icon: Bell },
   { id: "deepdive", label: "Deep Dive", icon: Microscope },
   { id: "signal", label: "Signal", icon: Zap },
+  { id: "social", label: "Social", icon: MessageSquare },
   { id: "defi", label: "DeFi Yield", icon: Coins },
   { id: "risk", label: "Risk Framework", icon: Shield },
 ];
@@ -183,6 +185,16 @@ export function ProAnalysisPanel({ setup }: Props) {
           {tab === "alerts" && <EntryExitView e={analysis.entry_exit_alerts} />}
           {tab === "deepdive" && <DeepDiveView d={analysis.altcoin_deep_dive} symbol={setup.symbol} />}
           {tab === "signal" && <SignalView s={analysis.signal_strength} />}
+          {tab === "social" && (
+            <SocialSentiment
+              symbol={setup.symbol}
+              side={setup.side}
+              entry={{ low: setup.entryLow, high: setup.entryHigh }}
+              stop={setup.stop}
+              targets={setup.targets}
+              autoFetch
+            />
+          )}
           {tab === "defi" && <DefiView d={analysis.defi_yield_angle} />}
           {tab === "risk" && <RiskView r={analysis.risk_framework} />}
         </>

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
 import { RiskGuidance } from "@/components/RiskGuidance";
 import { ProAnalysisPanel } from "@/components/ProAnalysisPanel";
+import { SocialSentiment } from "@/components/SocialSentiment";
 
 export interface IndicatorRow {
   name: string;
@@ -143,6 +144,18 @@ export function PlanDetails({ plan, side, currentPrice, leverage, symbol, mode }
         leverage={leverage}
         timeHorizon={plan.timeHorizon}
       />
+
+      {/* Binance Square sentiment poll (lazy-loaded on user click) */}
+      {symbol && (
+        <SocialSentiment
+          symbol={symbol}
+          side={side}
+          entry={plan.entry}
+          stop={plan.stop}
+          targets={plan.targets}
+          compact
+        />
+      )}
 
       {/* Pro Analysis (lazy-loaded on user click) */}
       {symbol && (
