@@ -369,6 +369,28 @@ export function ReversalRadar({ onSelect }: { onSelect?: (sym: string) => void }
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated" title="Risk profile — controls volatility caps and meme exclusion">
+            {RISK_LEVELS.map((r) => {
+              const short = r === "conservative" ? "Safe" : r === "balanced" ? "Bal" : "Pro";
+              const activeCls =
+                r === "conservative" ? "bg-bull/25 text-bull"
+                : r === "balanced" ? "bg-primary text-primary-foreground"
+                : "bg-warning/25 text-warning";
+              return (
+                <button
+                  key={r}
+                  onClick={() => setRisk(r)}
+                  className={cn(
+                    "px-2 py-0.5 font-mono text-[10px] font-semibold uppercase transition-colors",
+                    risk === r ? activeCls : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={`${r.charAt(0).toUpperCase() + r.slice(1)} risk profile`}
+                >
+                  {short}
+                </button>
+              );
+            })}
+          </div>
           <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
             {TIMEFRAMES.map((tf) => (
               <button
