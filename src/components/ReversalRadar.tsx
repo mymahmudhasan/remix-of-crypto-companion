@@ -40,6 +40,10 @@ interface ReversalSetup {
 const EXCLUDE_BASES = new Set([
   "USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "PYUSD", "EURI", "EUR",
   "GBP", "AUD", "BRL", "TRY", "RUB", "PLN", "ZAR", "ARS", "MXN", "JPY",
+  // High-volatility meme / micro-cap pumps — excluded for low-risk focus
+  "PEPE", "SHIB", "FLOKI", "BONK", "WIF", "MEME", "PNUT", "GOAT", "ACT",
+  "NEIRO", "TURBO", "BOME", "MOG", "POPCAT", "BRETT", "MEW", "PONKE",
+  "TRUMP", "MELANIA", "FARTCOIN", "CHILLGUY", "MOODENG", "PEOPLE",
 ]);
 
 async function fetchTopUsdtUniverse(limit = 100): Promise<string[]> {
@@ -88,6 +92,22 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe): Promise
     // ATR proxy for stops
     const atrSlice = klines.slice(-15);
     const atr = atrSlice.reduce((s, k) => s + (k.high - k.low), 0) / atrSlice.length;
+    const atrPct = (atr / price) * 100;
+
+    // VOLATILITY GATE — reject erratic/high-flux pairs
+    // Per-timeframe ATR% caps (max acceptable bar volatility)
+    const maxAtrPct = timeframe === "15m" ? 1.5 : timeframe === "1h" ? 3.5 : 7;
+    if (atrPct > maxAtrPct) return null;
+
+    // Reject bars with extreme single-candle moves (pump/dump, not reversal)
+    const lastBarMovePct = (Math.abs(last.close - last.open) / last.open) * 100;
+    const maxBarMove = timeframe === "15m" ? 4 : timeframe === "1h" ? 7 : 12;
+    if (lastBarMovePct > maxBarMove) return null;
+
+    // Reject choppy ranges (no clear trend structure → whipsaw risk)
+    const recentRangePct = ((Math.max(...highs.slice(-20)) - Math.min(...lows.slice(-20))) / price) * 100;
+    const maxRange = timeframe === "15m" ? 8 : timeframe === "1h" ? 18 : 35;
+    if (recentRangePct > maxRange) return null;
 
     const rsiArr = rsi(closes, 14);
     const lastRsi = rsiArr[rsiArr.length - 1] ?? 50;
