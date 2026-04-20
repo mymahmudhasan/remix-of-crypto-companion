@@ -89,6 +89,57 @@ export type Database = {
         }
         Relationships: []
       }
+      square_publisher_settings: {
+        Row: {
+          api_key: string | null
+          client_id: string
+          created_at: string
+          enabled: boolean
+          endpoint_url: string | null
+          id: string
+          last_test_message: string | null
+          last_test_ok: boolean | null
+          last_tested_at: string | null
+          posts_per_window: number
+          timezone: string
+          updated_at: string
+          window_end_hour: number
+          window_start_hour: number
+        }
+        Insert: {
+          api_key?: string | null
+          client_id: string
+          created_at?: string
+          enabled?: boolean
+          endpoint_url?: string | null
+          id?: string
+          last_test_message?: string | null
+          last_test_ok?: boolean | null
+          last_tested_at?: string | null
+          posts_per_window?: number
+          timezone?: string
+          updated_at?: string
+          window_end_hour?: number
+          window_start_hour?: number
+        }
+        Update: {
+          api_key?: string | null
+          client_id?: string
+          created_at?: string
+          enabled?: boolean
+          endpoint_url?: string | null
+          id?: string
+          last_test_message?: string | null
+          last_test_ok?: boolean | null
+          last_tested_at?: string | null
+          posts_per_window?: number
+          timezone?: string
+          updated_at?: string
+          window_end_hour?: number
+          window_start_hour?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
