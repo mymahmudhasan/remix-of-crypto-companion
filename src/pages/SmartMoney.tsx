@@ -584,6 +584,23 @@ function CoachView({
         </div>
       </div>
 
+      {/* Trade-setup guideline card (Signals-tab style) */}
+      <TradeSetupSummary
+        symbol={symbol}
+        side={coach.side}
+        setupName={setupName}
+        timeframe={interval}
+        leverage={coach.levels.leverage}
+        conviction={coach.confidence}
+        entryLow={coach.levels.entryLow}
+        entryHigh={coach.levels.entryHigh}
+        stop={coach.levels.stop}
+        targets={coach.levels.targets}
+        reasoning={[coach.headline, ...topFootprints].filter(Boolean).slice(0, 5)}
+        trigger={coach.playbook?.[0]?.action}
+        invalidation={coach.invalidation}
+      />
+
       {/* Levels strip */}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Lvl label="Entry Zone" value={`${formatPrice(coach.levels.entryLow)} – ${formatPrice(coach.levels.entryHigh)}`} tone="primary" />
