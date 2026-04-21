@@ -10,6 +10,8 @@ import { SignalAlertsToggle } from "@/components/SignalAlertsToggle";
 import { processSignalsForAlerts } from "@/lib/signal-alerts";
 import { toast } from "sonner";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { MomentumLabel } from "@/components/MomentumLabel";
+import { use24hChanges } from "@/hooks/use-24h-changes";
 import { cn } from "@/lib/utils";
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 minutes
@@ -168,18 +170,30 @@ export default function Signals() {
         )}
 
         {data && visibleSignals.length > 0 && (
-          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-2">
-            {visibleSignals.map((s, i) => (
-              <SignalCard key={`${s.symbol}-${i}`} signal={s} onOpen={() => navigate(`/futures?symbol=${s.symbol}`)} />
-            ))}
-          </div>
+          <SignalGrid signals={visibleSignals} onOpen={(sym) => navigate(`/futures?symbol=${sym}`)} />
         )}
       </div>
     </div>
   );
 }
 
-function SignalCard({ signal, onOpen }: { signal: PremiumSignal; onOpen: () => void }) {
+function SignalGrid({ signals, onOpen }: { signals: PremiumSignal[]; onOpen: (sym: string) => void }) {
+  const changes = use24hChanges(signals.map((s) => s.symbol));
+  return (
+    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-2">
+      {signals.map((s, i) => (
+        <SignalCard
+          key={`${s.symbol}-${i}`}
+          signal={s}
+          change24h={changes[s.symbol]}
+          onOpen={() => onOpen(s.symbol)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SignalCard({ signal, change24h, onOpen }: { signal: PremiumSignal; change24h: number | undefined; onOpen: () => void }) {
   const isLong = signal.side === "long";
   const entryMid = (signal.entry_low + signal.entry_high) / 2;
   const slDistPct = Math.abs(((signal.stop - entryMid) / entryMid) * 100);
@@ -204,6 +218,7 @@ function SignalCard({ signal, onOpen }: { signal: PremiumSignal; onOpen: () => v
           <div className="leading-tight">
             <div className="flex flex-wrap items-center gap-1.5 font-mono text-sm font-bold text-foreground">
               <span>{signal.symbol.replace("USDT", "/USDT")}</span>
+              <MomentumLabel change24h={change24h} />
               <span className={cn(
                 "rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase",
                 isLong ? "bg-bull/20 text-bull" : "bg-bear/20 text-bear"
