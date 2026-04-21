@@ -22,13 +22,20 @@ export default function SquarePosts() {
   const [loadingSignals, setLoadingSignals] = useState(false);
   const [signalsError, setSignalsError] = useState<string | null>(null);
   const [batchRunning, setBatchRunning] = useState(false);
+  const [searchSymbol, setSearchSymbol] = useState("");
+  const [adding, setAdding] = useState(false);
 
   const loadSignals = async () => {
     setLoadingSignals(true);
     setSignalsError(null);
     try {
       const r = await fetchPremiumSignals();
-      setItems(r.signals.map((s) => ({ signal: s, post: null, imageDataUrl: null, loading: false, error: null })));
+      setItems((prev) => {
+        // keep manually-added (custom) items at the top
+        const custom = prev.filter((it) => (it as any).custom);
+        const fresh = r.signals.map((s) => ({ signal: s, post: null, imageDataUrl: null, loading: false, error: null }));
+        return [...custom, ...fresh];
+      });
     } catch (e: any) {
       setSignalsError(e.message || "Failed to load signals");
     } finally {
@@ -42,6 +49,39 @@ export default function SquarePosts() {
 
   const updateItem = (idx: number, patch: Partial<QueueItem>) => {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  };
+
+  const addBySymbol = async () => {
+    const raw = searchSymbol.trim().toUpperCase();
+    if (!raw) return;
+    const symbol = raw.endsWith("USDT") ? raw : `${raw}USDT`;
+    if (items.some((it) => it.signal.symbol === symbol)) {
+      toast.info(`${symbol} already in the queue`);
+      setSearchSymbol("");
+      return;
+    }
+    setAdding(true);
+    try {
+      const signal = await fetchSignalForSymbol(symbol);
+      const newItem: QueueItem & { custom?: boolean } = {
+        signal, post: null, imageDataUrl: null, loading: true, error: null, custom: true,
+      };
+      setItems((prev) => [newItem, ...prev]);
+      setSearchSymbol("");
+      // Auto-generate the post for the freshly fetched signal
+      try {
+        const post = await generateSquarePost(signal);
+        setItems((prev) => prev.map((it) => (it.signal.symbol === symbol ? { ...it, post, loading: false } : it)));
+        toast.success(`Post ready for ${symbol}`);
+      } catch (e: any) {
+        setItems((prev) => prev.map((it) => (it.signal.symbol === symbol ? { ...it, loading: false, error: e.message || "Post failed" } : it)));
+        toast.error("Post generation failed", { description: e.message });
+      }
+    } catch (e: any) {
+      toast.error(`Could not build signal for ${symbol}`, { description: e.message });
+    } finally {
+      setAdding(false);
+    }
   };
 
   const generateOne = async (idx: number) => {
