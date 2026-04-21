@@ -218,6 +218,7 @@ function SignalCard({ signal, change24h, onOpen }: { signal: PremiumSignal; chan
           <div className="leading-tight">
             <div className="flex flex-wrap items-center gap-1.5 font-mono text-sm font-bold text-foreground">
               <span>{signal.symbol.replace("USDT", "/USDT")}</span>
+              <MomentumLabel change24h={change24h} />
               <span className={cn(
                 "rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase",
                 isLong ? "bg-bull/20 text-bull" : "bg-bear/20 text-bear"
