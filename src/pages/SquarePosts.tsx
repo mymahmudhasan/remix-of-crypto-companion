@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Eye,
+  Sparkles, RefreshCw, Loader2, AlertCircle, Copy, Check, Download, Wand2, Image as ImageIcon, Hash, TrendingUp, TrendingDown, Eye, Search, Plus,
 } from "lucide-react";
 import { fetchPremiumSignals, type PremiumSignal } from "@/lib/premium-signals";
-import { generateSquarePost, type SquarePost } from "@/lib/square-posts";
+import { generateSquarePost, fetchSignalForSymbol, type SquarePost } from "@/lib/square-posts";
 import { snapshotChart } from "@/lib/snapshot-chart";
 import { MiniSetupChart } from "@/components/MiniSetupChart";
 import { toast } from "sonner";
