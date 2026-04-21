@@ -20,12 +20,27 @@ interface Props {
 }
 
 const QUICK_PROMPTS = [
+  "4-pillar fundamental analysis",
   "Full analysis on this chart",
   "Is this rally fake? (CVD divergence)",
   "Funding skew & squeeze risk",
   "Where will price magnet to? (liq heatmap)",
   "Are whales depositing BTC?",
 ];
+
+function expandPrompt(p: string, symbol: string): string {
+  if (p === "4-pillar fundamental analysis") {
+    const ticker = symbol.replace("USDT", "");
+    return `Generate a comprehensive 4-pillar analysis for ${ticker}.
+1. **Tokenomics**: Check the Market Cap vs FDV ratio and upcoming unlocks (dilution risk).
+2. **Fundamentals**: Summarize its core utility and recent developer activity.
+3. **On-chain**: Provide its current TVL or active user trends.
+4. **Market Microstructure**: Analyze its 24h trading volume and liquidity depth.
+
+Use your tools to fetch live data where possible. Conclude with an overall conviction score (1-10) and a clear bull/bear bias.`;
+  }
+  return p;
+}
 
 const TOOL_LABEL: Record<string, string> = {
   get_price: "📈 Price",
@@ -137,7 +152,7 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
               {QUICK_PROMPTS.map((p) => (
                 <button
                   key={p}
-                  onClick={() => send(p)}
+                  onClick={() => send(expandPrompt(p, symbol))}
                   className="rounded-md border border-border bg-surface-elevated px-2.5 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                 >
                   {p}
