@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Lock, Calendar, AlertTriangle, ShieldCheck, Eye, Scissors } from "lucide-react";
+import { Lock, Calendar, AlertTriangle, ShieldCheck, Eye, Scissors, Search } from "lucide-react";
 import { UNLOCKS, judgeUnlock, type UnlockEvent } from "@/lib/unlocks";
 import { cn } from "@/lib/utils";
 
@@ -15,16 +15,19 @@ const CATEGORIES = ["all", "cliff", "linear", "team", "investor", "ecosystem"] a
 export default function Unlocks() {
   const [cat, setCat] = useState<typeof CATEGORIES[number]>("all");
   const [windowDays, setWindowDays] = useState(30);
+  const [search, setSearch] = useState("");
 
   const events = useMemo(() => {
     const now = new Date();
     const limit = new Date(); limit.setDate(now.getDate() + windowDays);
+    const q = search.trim().toUpperCase();
     return UNLOCKS
       .filter((u) => new Date(u.date) <= limit)
       .filter((u) => cat === "all" || u.category === cat)
+      .filter((u) => !q || u.symbol.toUpperCase().includes(q) || u.name.toUpperCase().includes(q))
       .map((u) => ({ event: u, verdict: judgeUnlock(u) }))
       .sort((a, b) => +new Date(a.event.date) - +new Date(b.event.date));
-  }, [cat, windowDays]);
+  }, [cat, windowDays, search]);
 
   const totalUsd = events.reduce((s, e) => s + e.event.amountUsd, 0);
   const highRisk = events.filter((e) => e.verdict.action === "avoid" || e.verdict.action === "trim").length;
@@ -40,6 +43,15 @@ export default function Unlocks() {
 
       {/* Filters */}
       <div className="panel flex flex-wrap items-center gap-2 p-2">
+        <div className="relative min-w-[180px]">
+          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search token… (ARB, SUI)"
+            className="w-full rounded-md border border-border bg-surface-elevated py-1 pl-7 pr-2 font-mono text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+          />
+        </div>
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Category:</span>
         <div className="flex flex-wrap overflow-hidden rounded-md border border-border bg-surface-elevated">
           {CATEGORIES.map((c) => (

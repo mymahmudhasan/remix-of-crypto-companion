@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Flame, TrendingUp, TrendingDown, Activity, RefreshCw } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Activity, RefreshCw, Search } from "lucide-react";
 import { fetch24h, fetchKlines, formatCompact, formatPrice } from "@/lib/binance";
 import { SCANNER_UNIVERSE, tickerToRow, type ScannerRow } from "@/lib/scanner";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ export default function PumpDump() {
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
   const [scannedCount, setScannedCount] = useState(0);
+  const [search, setSearch] = useState("");
 
   const refreshMovers = async () => {
     try {
@@ -96,11 +97,42 @@ export default function PumpDump() {
     return () => clearInterval(id);
   }, []);
 
-  const gainers = useMemo(() => [...movers].sort((a, b) => b.changePct - a.changePct).slice(0, 10), [movers]);
-  const losers = useMemo(() => [...movers].sort((a, b) => a.changePct - b.changePct).slice(0, 10), [movers]);
+  const q = search.trim().toUpperCase();
+  const matchSym = (s: string) => !q || s.toUpperCase().includes(q);
+  const gainers = useMemo(
+    () => [...movers].filter((r) => matchSym(r.symbol)).sort((a, b) => b.changePct - a.changePct).slice(0, 10),
+    [movers, q]
+  );
+  const losers = useMemo(
+    () => [...movers].filter((r) => matchSym(r.symbol)).sort((a, b) => a.changePct - b.changePct).slice(0, 10),
+    [movers, q]
+  );
+  const filteredSpikes = useMemo(() => spikes.filter((s) => matchSym(s.symbol)), [spikes, q]);
 
   return (
-    <div className="grid h-full gap-2 overflow-hidden p-2 lg:grid-cols-2 lg:grid-rows-[1fr_1fr]">
+    <div className="flex h-full flex-col gap-2 overflow-hidden p-2">
+      {/* Search bar */}
+      <div className="panel flex shrink-0 items-center gap-2 p-2">
+        <div className="relative flex-1 max-w-md">
+          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter pumps/dumps by symbol… (BTC, PEPE, SOL)"
+            className="w-full rounded-md border border-border bg-surface-elevated py-1.5 pl-7 pr-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+          />
+        </div>
+        {q && (
+          <button
+            onClick={() => setSearch("")}
+            className="rounded border border-border bg-surface-elevated px-2 py-1 font-mono text-[10px] uppercase text-muted-foreground hover:border-primary hover:text-primary"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden lg:grid-cols-2 lg:grid-rows-[1fr_1fr]">
       {/* Gainers */}
       <MoverList title="Top Gainers · 24h" rows={gainers} variant="bull" icon={TrendingUp} />
       {/* Losers */}
@@ -141,7 +173,7 @@ export default function PumpDump() {
               </tr>
             </thead>
             <tbody>
-              {spikes.map((s) => {
+              {filteredSpikes.map((s) => {
                 const v = s.verdict;
                 const color = v === "pump" ? "bg-bull/15 text-bull border-bull/30" : v === "dump" ? "bg-bear/15 text-bear border-bear/30" : "bg-warning/15 text-warning border-warning/30";
                 const label = v === "pump" ? "🚀 PUMP" : v === "dump" ? "💥 DUMP" : "👀 WATCH";
@@ -162,13 +194,15 @@ export default function PumpDump() {
                   </tr>
                 );
               })}
-              {!scanning && spikes.length === 0 && (
+              {!scanning && filteredSpikes.length === 0 && (
                 <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">
                   {error
                     ? <span className="text-bear">⚠ {error}</span>
-                    : scannedCount > 0
-                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 1.8× vol & |Δ| ≥ 0.5% / 5m. Markets are calm — try Rescan in a few min.`
-                      : "Loading…"}
+                    : q && spikes.length > 0
+                      ? `No spikes match "${q}".`
+                      : scannedCount > 0
+                        ? `Scanned ${scannedCount} pairs · no spikes ≥ 1.8× vol & |Δ| ≥ 0.5% / 5m. Markets are calm — try Rescan in a few min.`
+                        : "Loading…"}
                 </td></tr>
               )}
             </tbody>
@@ -177,6 +211,7 @@ export default function PumpDump() {
         <div className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
           Last refresh: {updatedAt.toLocaleTimeString()} · alerts trigger at vol ≥ 1.8× baseline & |Δ| ≥ 0.5% / 5m · top 100 pairs
         </div>
+      </div>
       </div>
     </div>
   );
