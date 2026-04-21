@@ -26,10 +26,12 @@ export default function Signals() {
 
   const visibleSignals = useMemo(() => {
     if (!data) return [];
+    const q = filters.search.trim().toUpperCase();
     const filtered = data.signals.filter((s) => {
       if (filters.side !== "all" && s.side !== filters.side) return false;
       if (filters.timeframe !== "all" && s.timeframe !== filters.timeframe) return false;
       if (s.conviction < filters.minConviction) return false;
+      if (q && !s.symbol.toUpperCase().includes(q)) return false;
       return true;
     });
     return [...filtered].sort((a, b) => {

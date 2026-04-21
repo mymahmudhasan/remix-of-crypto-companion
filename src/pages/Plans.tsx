@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bookmark, Trophy, X, Trash2, Loader2, ArrowUpRight,
-  TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock,
+  TrendingUp, TrendingDown, Filter, BarChart3, AlertCircle, Clock, Search,
 } from "lucide-react";
 import { plansClient, SAVED_PLANS_TABLE } from "@/lib/plans-client";
 import { formatPrice, subscribeMiniTickers } from "@/lib/binance";
@@ -69,6 +69,7 @@ export default function Plans() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<FilterTab>("all");
   const [modeFilter, setModeFilter] = useState<"all" | "spot" | "futures">("all");
+  const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   /** Tracks ids we've already auto-resolved this session so we don't retry on every tick. */
@@ -150,10 +151,13 @@ export default function Plans() {
     return { total, open, won, lost, winRate };
   }, [rows]);
 
-  const filtered = rows.filter((r) =>
-    (tab === "all" || r.status === tab) &&
-    (modeFilter === "all" || r.mode === modeFilter)
-  );
+  const filtered = rows.filter((r) => {
+    if (tab !== "all" && r.status !== tab) return false;
+    if (modeFilter !== "all" && r.mode !== modeFilter) return false;
+    const q = search.trim().toUpperCase();
+    if (q && !r.symbol.toUpperCase().includes(q)) return false;
+    return true;
+  });
 
   const setStatus = async (id: string, status: SavedPlanRow["status"]) => {
     setBusyId(id);
@@ -200,6 +204,15 @@ export default function Plans() {
 
       {/* Filters */}
       <div className="panel flex shrink-0 flex-wrap items-center gap-2 p-2">
+        <div className="relative min-w-[180px]">
+          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search symbol… (BTC, SOL)"
+            className="w-full rounded-md border border-border bg-surface-elevated py-1 pl-7 pr-2 font-mono text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+          />
+        </div>
         <Filter className="size-3.5 text-muted-foreground" />
         <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
           {(["all", "open", "won", "lost"] as FilterTab[]).map((t) => (

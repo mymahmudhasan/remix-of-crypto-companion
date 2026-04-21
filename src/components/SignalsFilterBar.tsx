@@ -1,6 +1,6 @@
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, Filter } from "lucide-react";
+import { ArrowUpDown, Filter, Search } from "lucide-react";
 
 export type SideFilter = "all" | "long" | "short";
 export type TimeframeFilter = "all" | "intraday" | "swing" | "position";
@@ -11,6 +11,7 @@ export interface SignalsFilterState {
   minConviction: number;
   timeframe: TimeframeFilter;
   sortBy: SortKey;
+  search: string;
 }
 
 export const DEFAULT_FILTERS: SignalsFilterState = {
@@ -18,6 +19,7 @@ export const DEFAULT_FILTERS: SignalsFilterState = {
   minConviction: 0,
   timeframe: "all",
   sortBy: "conviction",
+  search: "",
 };
 
 interface Props {
@@ -67,6 +69,17 @@ export function SignalsFilterBar({ value, onChange, totalCount, visibleCount }: 
     <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-surface/30 px-4 py-2">
       <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         <Filter className="size-3" /> Filters
+      </div>
+
+      {/* Search */}
+      <div className="relative min-w-[160px]">
+        <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={value.search}
+          onChange={(e) => update("search", e.target.value)}
+          placeholder="Search symbol…"
+          className="w-full rounded-md border border-border bg-surface/40 py-1 pl-7 pr-2 font-mono text-[11px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        />
       </div>
 
       {/* Side */}
