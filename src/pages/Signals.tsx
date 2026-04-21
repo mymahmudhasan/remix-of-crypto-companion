@@ -170,11 +170,7 @@ export default function Signals() {
         )}
 
         {data && visibleSignals.length > 0 && (
-          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-2">
-            {visibleSignals.map((s, i) => (
-              <SignalCard key={`${s.symbol}-${i}`} signal={s} onOpen={() => navigate(`/futures?symbol=${s.symbol}`)} />
-            ))}
-          </div>
+          <SignalGrid signals={visibleSignals} onOpen={(sym) => navigate(`/futures?symbol=${sym}`)} />
         )}
       </div>
     </div>
