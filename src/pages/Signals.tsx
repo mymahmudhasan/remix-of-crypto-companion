@@ -177,7 +177,23 @@ export default function Signals() {
   );
 }
 
-function SignalCard({ signal, onOpen }: { signal: PremiumSignal; onOpen: () => void }) {
+function SignalGrid({ signals, onOpen }: { signals: PremiumSignal[]; onOpen: (sym: string) => void }) {
+  const changes = use24hChanges(signals.map((s) => s.symbol));
+  return (
+    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-2">
+      {signals.map((s, i) => (
+        <SignalCard
+          key={`${s.symbol}-${i}`}
+          signal={s}
+          change24h={changes[s.symbol]}
+          onOpen={() => onOpen(s.symbol)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SignalCard({ signal, change24h, onOpen }: { signal: PremiumSignal; change24h: number | undefined; onOpen: () => void }) {
   const isLong = signal.side === "long";
   const entryMid = (signal.entry_low + signal.entry_high) / 2;
   const slDistPct = Math.abs(((signal.stop - entryMid) / entryMid) * 100);
