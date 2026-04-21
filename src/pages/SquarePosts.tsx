@@ -129,7 +129,7 @@ export default function SquarePosts() {
         </div>
         <ul className="mt-1 grid gap-x-4 gap-y-0.5 font-mono text-[10px] leading-relaxed text-muted-foreground md:grid-cols-2">
           <li>• Lead with <span className="text-foreground">$TICKER + a number</span> (target %, R:R, timeframe)</li>
-          <li>• Post in the Dhaka <span className="text-foreground">4–8 PM</span> window (global prime time)</li>
+          <li>• Post <span className="text-foreground">anytime</span> — generate as soon as a signal fires, don't wait for a window</li>
           <li>• Always attach the <span className="text-foreground">chart image</span> — image posts out-perform ~3×</li>
           <li>• Use <span className="text-foreground">5 tags</span>: #COIN · #Binance · one trend (#BTC/#Altseason) · #Trading · setup</li>
           <li>• Put <span className="text-foreground">Entry / Stop / Targets</span> as clean numbers, not prose</li>
