@@ -173,7 +173,7 @@ export default function PumpDump() {
               </tr>
             </thead>
             <tbody>
-              {spikes.map((s) => {
+              {filteredSpikes.map((s) => {
                 const v = s.verdict;
                 const color = v === "pump" ? "bg-bull/15 text-bull border-bull/30" : v === "dump" ? "bg-bear/15 text-bear border-bear/30" : "bg-warning/15 text-warning border-warning/30";
                 const label = v === "pump" ? "🚀 PUMP" : v === "dump" ? "💥 DUMP" : "👀 WATCH";
@@ -194,13 +194,15 @@ export default function PumpDump() {
                   </tr>
                 );
               })}
-              {!scanning && spikes.length === 0 && (
+              {!scanning && filteredSpikes.length === 0 && (
                 <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">
                   {error
                     ? <span className="text-bear">⚠ {error}</span>
-                    : scannedCount > 0
-                      ? `Scanned ${scannedCount} pairs · no spikes ≥ 1.8× vol & |Δ| ≥ 0.5% / 5m. Markets are calm — try Rescan in a few min.`
-                      : "Loading…"}
+                    : q && spikes.length > 0
+                      ? `No spikes match "${q}".`
+                      : scannedCount > 0
+                        ? `Scanned ${scannedCount} pairs · no spikes ≥ 1.8× vol & |Δ| ≥ 0.5% / 5m. Markets are calm — try Rescan in a few min.`
+                        : "Loading…"}
                 </td></tr>
               )}
             </tbody>
@@ -209,6 +211,7 @@ export default function PumpDump() {
         <div className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
           Last refresh: {updatedAt.toLocaleTimeString()} · alerts trigger at vol ≥ 1.8× baseline & |Δ| ≥ 0.5% / 5m · top 100 pairs
         </div>
+      </div>
       </div>
     </div>
   );
