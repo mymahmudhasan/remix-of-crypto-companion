@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown, Activity } from "lucide-react";
-import { fetchKlines, formatPrice } from "@/lib/binance";
+import { Rocket, Loader2, AlertCircle, Target, Shield, Zap, Skull, TrendingUp, TrendingDown, Activity, Search } from "lucide-react";
+import { fetchKlines, fetchAllUsdtSymbols, formatPrice } from "@/lib/binance";
 import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type ScoredSignal } from "@/lib/indicators";
 import { SCANNER_UNIVERSE } from "@/lib/scanner";
 import { PlanDetails, type PlanCommon } from "@/components/PlanDetails";
@@ -38,6 +38,21 @@ export default function Futures() {
   }, [params]);
 
   const [interval, setInterval] = useState("1h");
+  const [allSymbols, setAllSymbols] = useState<string[]>([]);
+  const [symbolQuery, setSymbolQuery] = useState("");
+  const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    fetchAllUsdtSymbols().then(setAllSymbols).catch(() => setAllSymbols([]));
+  }, []);
+
+  const symbolMatches = useMemo(() => {
+    const q = symbolQuery.trim().toUpperCase();
+    const pool = allSymbols.length ? allSymbols : TOP_SYMBOLS;
+    if (!q) return pool.slice(0, 50);
+    return pool.filter((s) => s.includes(q)).slice(0, 50);
+  }, [symbolQuery, allSymbols]);
+
   const [accountSize, setAccountSize] = useState(10_000);
   const [maxLev, setMaxLev] = useState(10);
   const [plan, setPlan] = useState<FuturesPlan | null>(null);
@@ -118,12 +133,41 @@ export default function Futures() {
           <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Futures Master</h3>
         </div>
         <div className="flex flex-col gap-3 p-3">
-          <label className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Symbol</span>
-            <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="select-style">
-              {Array.from(new Set([symbol, ...TOP_SYMBOLS])).map((s) => <option key={s} value={s}>{s.replace("USDT", "-PERP")}</option>)}
-            </select>
-          </label>
+            <div className="relative">
+              <div className="flex items-center gap-1.5 rounded-md border border-border bg-surface-elevated px-2">
+                <Search className="size-3 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={symbolDropdownOpen ? symbolQuery : symbol.replace("USDT", "-PERP")}
+                  onFocus={() => { setSymbolDropdownOpen(true); setSymbolQuery(""); }}
+                  onBlur={() => setTimeout(() => setSymbolDropdownOpen(false), 150)}
+                  onChange={(e) => { setSymbolQuery(e.target.value); setSymbolDropdownOpen(true); }}
+                  placeholder="Search any USDT pair…"
+                  className="flex-1 bg-transparent py-1.5 font-mono text-xs outline-none"
+                />
+              </div>
+              {symbolDropdownOpen && symbolMatches.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-lg scrollbar-thin">
+                  {symbolMatches.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); setSymbol(s); setSymbolDropdownOpen(false); setSymbolQuery(""); }}
+                      className={cn(
+                        "flex w-full items-center justify-between px-2 py-1.5 text-left font-mono text-xs hover:bg-surface-hover",
+                        s === symbol && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <span>{s.replace("USDT", "-PERP")}</span>
+                      <span className="text-[10px] text-muted-foreground">{s}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <label className="flex flex-col gap-1">
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Timeframe</span>
             <div className="flex overflow-hidden rounded-md border border-border bg-surface-elevated">
