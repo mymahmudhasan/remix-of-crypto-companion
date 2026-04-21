@@ -10,6 +10,8 @@ import { SignalAlertsToggle } from "@/components/SignalAlertsToggle";
 import { processSignalsForAlerts } from "@/lib/signal-alerts";
 import { toast } from "sonner";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { MomentumLabel } from "@/components/MomentumLabel";
+import { use24hChanges } from "@/hooks/use-24h-changes";
 import { cn } from "@/lib/utils";
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 minutes
