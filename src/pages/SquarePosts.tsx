@@ -182,6 +182,33 @@ export default function SquarePosts() {
         ℹ️ Manual posting mode — generate → <span className="text-amber-300">Copy text</span> + <span className="text-amber-300">download image</span> → paste into the Binance app.
       </div>
 
+      {/* Custom-symbol search box */}
+      <div className="shrink-0 border-b border-border bg-surface/40 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-md border border-border bg-surface-elevated px-2.5 py-1.5 focus-within:border-primary/60">
+            <Search className="size-3.5 text-muted-foreground" />
+            <input
+              value={searchSymbol}
+              onChange={(e) => setSearchSymbol(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !adding && searchSymbol.trim()) addBySymbol();
+              }}
+              disabled={adding}
+              placeholder="Search any token (e.g. BTC, SOL, PEPE) → build signal + post"
+              className="flex-1 bg-transparent font-mono text-[11px] uppercase tracking-wider text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-60"
+            />
+          </div>
+          <button
+            onClick={addBySymbol}
+            disabled={adding || !searchSymbol.trim()}
+            className="flex items-center gap-1.5 rounded-md border border-primary/50 bg-primary/10 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-primary transition-all hover:bg-primary/20 disabled:opacity-60"
+          >
+            {adding ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+            {adding ? "Building…" : "Add & generate"}
+          </button>
+        </div>
+      </div>
+
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-3 scrollbar-thin">
         {signalsError && (
