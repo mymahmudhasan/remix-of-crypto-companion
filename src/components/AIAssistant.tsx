@@ -152,7 +152,7 @@ export function AIAssistant({ symbol, interval, closes }: Props) {
               {QUICK_PROMPTS.map((p) => (
                 <button
                   key={p}
-                  onClick={() => send(p)}
+                  onClick={() => send(expandPrompt(p, symbol))}
                   className="rounded-md border border-border bg-surface-elevated px-2.5 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                 >
                   {p}
