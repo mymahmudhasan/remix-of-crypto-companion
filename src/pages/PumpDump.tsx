@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Flame, TrendingUp, TrendingDown, Activity, RefreshCw, Search, ChevronDown, ChevronRight, Target, Shield, TrendingUp as TUp } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Activity, RefreshCw, Search, ChevronDown, Target, Shield } from "lucide-react";
 import { fetch24h, fetchKlines, formatCompact, formatPrice } from "@/lib/binance";
 import { SCANNER_UNIVERSE, tickerToRow, type ScannerRow } from "@/lib/scanner";
 import { cn } from "@/lib/utils";
