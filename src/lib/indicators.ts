@@ -149,6 +149,106 @@ export function volumeRatio(volumes: number[], period = 20): number | null {
   return avg > 0 ? volumes[volumes.length - 1] / avg : null;
 }
 
+/* ============================================================================
+ * RFD — Rate of Force Development
+ * ----------------------------------------------------------------------------
+ * Adapted from sports science (slope of the force–time curve). In markets:
+ *   force[i]  = (close[i] − close[i-1]) × volume[i]   — signed impulse
+ *   meanFast  = average force over the last `fast` bars       (e.g. 5)
+ *   meanSlow  = average force over the last `slow` bars       (e.g. 13)
+ *   raw       = meanFast − meanSlow                            — acceleration of force
+ *   rfd       = raw / σ(|force|, slow)  → clamped to [-100, +100]
+ *
+ * Interpretation
+ *   +60 …  +100 → explosive bullish force build-up (buyers accelerating hard)
+ *   +20 …   +60 → bullish force expansion
+ *    -20 …  +20 → neutral / consolidation
+ *    -60 …  -20 → bearish force expansion
+ *   -100 …  -60 → explosive bearish force build-up (sellers accelerating hard)
+ *
+ * Crosses through zero = force-regime flip (faster than MACD because it measures
+ * the *derivative* of momentum, not EMA separation).
+ *
+ * RFD vs price divergence = exhaustion. Price up + RFD rolling over = pump
+ * losing fuel; mirror image for bottoms.
+ * ========================================================================== */
+export interface RfdResult {
+  /** Last RFD reading, clamped to [-100, +100]. Null if not enough data. */
+  value: number | null;
+  /** Previous RFD reading (one bar back). */
+  prev: number | null;
+  /** RFD reading 5 bars back — used to detect rate of change. */
+  prev5: number | null;
+  /** Bar-to-bar change. Positive = force accelerating; negative = decelerating. */
+  delta: number | null;
+  /** Crossed above zero on this bar. */
+  crossUp: boolean;
+  /** Crossed below zero on this bar. */
+  crossDown: boolean;
+  /**
+   * Divergence flag:
+   *   "bear" — price made a new high but RFD did not (force exhaustion at top)
+   *   "bull" — price made a new low but RFD did not (force exhaustion at bottom)
+   */
+  divergence: "bull" | "bear" | null;
+}
+
+/** Compute RFD from raw closes + volumes. Default windows: fast 5, slow 13. */
+export function rfd(closes: number[], volumes: number[], fast = 5, slow = 13): RfdResult {
+  const n = closes.length;
+  const empty: RfdResult = {
+    value: null, prev: null, prev5: null, delta: null,
+    crossUp: false, crossDown: false, divergence: null,
+  };
+  if (n < slow + 6 || volumes.length !== n) return empty;
+
+  // Per-bar signed force = priceChange × volume
+  const force: number[] = new Array(n).fill(0);
+  for (let i = 1; i < n; i++) force[i] = (closes[i] - closes[i - 1]) * volumes[i];
+
+  const series: (number | null)[] = new Array(n).fill(null);
+  for (let i = slow; i < n; i++) {
+    const fastWin = force.slice(i - fast + 1, i + 1);
+    const slowWin = force.slice(i - slow + 1, i + 1);
+    const meanFast = fastWin.reduce((s, v) => s + v, 0) / fast;
+    const meanSlow = slowWin.reduce((s, v) => s + v, 0) / slow;
+    // Normalizer: std of absolute force across slow window
+    const absMean = slowWin.reduce((s, v) => s + Math.abs(v), 0) / slow;
+    const variance = slowWin.reduce((s, v) => s + (Math.abs(v) - absMean) ** 2, 0) / slow;
+    const sigma = Math.sqrt(variance);
+    const denom = sigma + absMean * 0.5; // hybrid to avoid blow-ups in low-vol regimes
+    const raw = denom > 0 ? (meanFast - meanSlow) / denom : 0;
+    // Map ~[-3, +3] → [-100, +100], clamp
+    const scaled = Math.max(-100, Math.min(100, raw * 35));
+    series[i] = scaled;
+  }
+
+  const value = series[n - 1];
+  const prev = series[n - 2] ?? null;
+  const prev5 = series[n - 6] ?? null;
+  const delta = value !== null && prev !== null ? value - prev : null;
+  const crossUp = value !== null && prev !== null && prev <= 0 && value > 0;
+  const crossDown = value !== null && prev !== null && prev >= 0 && value < 0;
+
+  // Divergence detection on last 20 bars
+  let divergence: "bull" | "bear" | null = null;
+  if (value !== null && n >= 25) {
+    const priceWin = closes.slice(-20);
+    const rfdWin = series.slice(-20).map((v) => v ?? 0);
+    const priceMaxIdx = priceWin.indexOf(Math.max(...priceWin));
+    const priceMinIdx = priceWin.indexOf(Math.min(...priceWin));
+    const rfdMax = Math.max(...rfdWin);
+    const rfdMin = Math.min(...rfdWin);
+    // Bearish: latest price near top of window but RFD well off its high
+    if (priceMaxIdx >= 15 && value < rfdMax - 25 && value < 30) divergence = "bear";
+    // Bullish: latest price near bottom of window but RFD well off its low
+    else if (priceMinIdx >= 15 && value > rfdMin + 25 && value > -30) divergence = "bull";
+  }
+
+  return { value, prev, prev5, delta, crossUp, crossDown, divergence };
+}
+
+
 export interface IndicatorSnapshot {
   price: number;
   rsi14: number | null;
