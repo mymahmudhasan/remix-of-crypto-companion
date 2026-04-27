@@ -421,3 +421,227 @@ function Field({
     </div>
   );
 }
+
+const SIZER_STORAGE_KEY = "pd_sizer_v1";
+interface SizerPrefs { account: number; riskPct: number; leverage: number; mmr: number }
+const DEFAULT_PREFS: SizerPrefs = { account: 1000, riskPct: 1, leverage: 5, mmr: 0.5 };
+
+function loadPrefs(): SizerPrefs {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(SIZER_STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw);
+    return {
+      account: clampNum(parsed.account, 1, 10_000_000, DEFAULT_PREFS.account),
+      riskPct: clampNum(parsed.riskPct, 0.05, 100, DEFAULT_PREFS.riskPct),
+      leverage: clampNum(parsed.leverage, 1, 125, DEFAULT_PREFS.leverage),
+      mmr: clampNum(parsed.mmr, 0.1, 10, DEFAULT_PREFS.mmr),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+function clampNum(v: any, min: number, max: number, fallback: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function PositionSizer({
+  symbol, side, entry, stop, tp1, tp2, tp3,
+}: {
+  symbol: string;
+  side: "long" | "short";
+  entry: number;
+  stop: number;
+  tp1: number;
+  tp2: number;
+  tp3: number;
+}) {
+  const [prefs, setPrefs] = useState<SizerPrefs>(() => loadPrefs());
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIZER_STORAGE_KEY, JSON.stringify(prefs));
+    } catch {
+      /* ignore quota */
+    }
+  }, [prefs]);
+
+  const { account, riskPct, leverage, mmr } = prefs;
+
+  const riskUsd = (account * riskPct) / 100;
+  const stopDist = Math.abs(entry - stop);
+  const stopDistPct = entry > 0 ? (stopDist / entry) * 100 : 0;
+  // Quantity sized to lose exactly `riskUsd` if stop is hit.
+  const qty = stopDist > 0 ? riskUsd / stopDist : 0;
+  const notional = qty * entry;
+  const margin = leverage > 0 ? notional / leverage : notional;
+  const marginPctOfAcct = account > 0 ? (margin / account) * 100 : 0;
+
+  // Liquidation estimate (cross/isolated approximation, ignoring fees & funding).
+  // long  liq ≈ entry * (1 - 1/lev + mmr/100)
+  // short liq ≈ entry * (1 + 1/lev - mmr/100)
+  const liqPrice = side === "long"
+    ? entry * (1 - 1 / leverage + mmr / 100)
+    : entry * (1 + 1 / leverage - mmr / 100);
+  const liqDistPct = entry > 0 ? Math.abs((liqPrice - entry) / entry) * 100 : 0;
+  const stopBeforeLiq = side === "long" ? stop > liqPrice : stop < liqPrice;
+
+  const pnl = (target: number) => qty * (side === "long" ? target - entry : entry - target);
+
+  const overMargin = margin > account;
+  const stopTooWide = !stopBeforeLiq;
+
+  return (
+    <div className="rounded border border-border/60 bg-surface p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Calculator className="size-3 text-primary" />
+          Position Sizer
+        </div>
+        <span className="font-mono text-[9px] text-muted-foreground">{symbol.replace("USDT", "")}/USDT</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <SizerInput
+          label="Account ($)"
+          value={account}
+          step={50}
+          min={1}
+          max={10_000_000}
+          onChange={(v) => setPrefs((p) => ({ ...p, account: v }))}
+        />
+        <SizerInput
+          label="Risk %"
+          value={riskPct}
+          step={0.1}
+          min={0.05}
+          max={100}
+          onChange={(v) => setPrefs((p) => ({ ...p, riskPct: v }))}
+          suffix="%"
+        />
+        <SizerInput
+          label="Leverage"
+          value={leverage}
+          step={1}
+          min={1}
+          max={125}
+          onChange={(v) => setPrefs((p) => ({ ...p, leverage: v }))}
+          suffix="×"
+        />
+        <SizerInput
+          label="MMR %"
+          value={mmr}
+          step={0.1}
+          min={0.1}
+          max={10}
+          onChange={(v) => setPrefs((p) => ({ ...p, mmr: v }))}
+          suffix="%"
+          title="Maintenance margin rate (varies by exchange/tier; 0.5% is a common default)"
+        />
+      </div>
+
+      <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-border/60 pt-2 font-mono text-[10px]">
+        <ResultRow label="Risk" value={`$${riskUsd.toFixed(2)}`} valueClass="text-warning" />
+        <ResultRow label="Stop dist" value={`${stopDistPct.toFixed(2)}%`} />
+        <ResultRow label="Position qty" value={qty > 0 ? qty.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "—"} valueClass="text-foreground" />
+        <ResultRow label="Notional" value={`$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+        <ResultRow
+          label="Margin"
+          value={`$${margin.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+          valueClass={overMargin ? "text-bear" : "text-foreground"}
+          extra={`${marginPctOfAcct.toFixed(1)}% acct`}
+        />
+        <ResultRow
+          label="Liq. price"
+          value={formatPrice(liqPrice)}
+          valueClass={stopTooWide ? "text-bear" : "text-bear/80"}
+          extra={`${liqDistPct.toFixed(2)}% away`}
+        />
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-1.5 font-mono text-[10px]">
+        <PnLPill label="TP1" pnl={pnl(tp1)} risk={riskUsd} />
+        <PnLPill label="TP2" pnl={pnl(tp2)} risk={riskUsd} />
+        <PnLPill label="TP3" pnl={pnl(tp3)} risk={riskUsd} />
+      </div>
+
+      {(overMargin || stopTooWide) && (
+        <div className="mt-2 space-y-0.5 font-mono text-[9.5px] text-bear">
+          {overMargin && <div>⚠ Margin (${margin.toFixed(0)}) exceeds account — lower risk %, leverage, or stop distance.</div>}
+          {stopTooWide && <div>⚠ Stop is past liquidation at {leverage}× — increase leverage tier or tighten stop.</div>}
+        </div>
+      )}
+      <div className="mt-1.5 font-mono text-[9px] text-muted-foreground/80">
+        Estimates exclude fees & funding. Liq. uses simple {mmr}% MMR.
+      </div>
+    </div>
+  );
+}
+
+function SizerInput({
+  label, value, onChange, step, min, max, suffix, title,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  step: number;
+  min: number;
+  max: number;
+  suffix?: string;
+  title?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-0.5" title={title}>
+      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="flex items-center rounded border border-border bg-surface-elevated focus-within:border-primary/60">
+        <input
+          type="number"
+          value={Number.isFinite(value) ? value : ""}
+          step={step}
+          min={min}
+          max={max}
+          inputMode="decimal"
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === "") return;
+            const n = Number(raw);
+            if (!Number.isFinite(n)) return;
+            onChange(Math.min(max, Math.max(min, n)));
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full bg-transparent px-1.5 py-0.5 font-mono text-[11px] text-foreground tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        {suffix && <span className="pr-1.5 font-mono text-[10px] text-muted-foreground">{suffix}</span>}
+      </div>
+    </label>
+  );
+}
+
+function ResultRow({ label, value, valueClass, extra }: { label: string; value: string; valueClass?: string; extra?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-1.5">
+      <span className="text-[9.5px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="flex items-baseline gap-1 tabular-nums">
+        <span className={cn("font-semibold", valueClass)}>{value}</span>
+        {extra && <span className="text-[9px] text-muted-foreground">{extra}</span>}
+      </span>
+    </div>
+  );
+}
+
+function PnLPill({ label, pnl, risk }: { label: string; pnl: number; risk: number }) {
+  const positive = pnl >= 0;
+  const r = risk > 0 ? pnl / risk : 0;
+  return (
+    <div className={cn("flex flex-col items-center rounded border px-1.5 py-1", positive ? "border-bull/30 bg-bull/10" : "border-bear/30 bg-bear/10")}>
+      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className={cn("font-mono text-[11px] font-bold tabular-nums", positive ? "text-bull" : "text-bear")}>
+        {positive ? "+" : ""}${pnl.toFixed(2)}
+      </span>
+      <span className="font-mono text-[9px] text-muted-foreground">{r >= 0 ? "+" : ""}{r.toFixed(2)}R</span>
+    </div>
+  );
+}
