@@ -332,7 +332,7 @@ export default function PumpDump() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               {!scanning && filteredSpikes.length === 0 && (
