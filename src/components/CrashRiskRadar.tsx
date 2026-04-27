@@ -130,7 +130,6 @@ async function evalCrashRisk(
 
     const closes = klines.map((k) => k.close);
     const highs = klines.map((k) => k.high);
-    const lows = klines.map((k) => k.low);
     const vols = klines.map((k) => k.volume);
     const last = klines[klines.length - 1];
     const price = last.close;
