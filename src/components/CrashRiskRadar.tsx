@@ -150,6 +150,22 @@ async function evalCrashRisk(
       score += 8; reasons.push("Rejection wick + vol");
     }
 
+    // 9. RFD — acceleration of bearish force is the strongest leading-edge crash signal
+    const rfdData = rfd(closes, vols, 5, 13);
+    if (rfdData.value !== null) {
+      if (rfdData.value < -60) {
+        score += 18; reasons.push(`RFD ${rfdData.value.toFixed(0)} explosive sell force`);
+      } else if (rfdData.value < -25) {
+        score += 10; reasons.push(`RFD ${rfdData.value.toFixed(0)} bear force expanding`);
+      }
+      if (rfdData.crossDown) {
+        score += 10; reasons.push("RFD flipped negative (force regime change)");
+      }
+      if (rfdData.divergence === "bear") {
+        score += 14; reasons.push("RFD bear divergence (price up, force fading)");
+      }
+    }
+
     score = Math.min(100, score);
     if (score < 45) return null;
 
