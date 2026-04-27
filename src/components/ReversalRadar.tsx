@@ -205,6 +205,15 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
         if (rsiRolling) reasons.push("RSI rolling over");
         if (distancePct > 2) reasons.push(`+${distancePct.toFixed(1)}% spike`);
 
+        // RFD bias for top reversals: bear divergence or fading positive force
+        const rfdTopBonus =
+          rfdData.divergence === "bear" ? 14 :
+          (rfdData.value !== null && rfdData.value < 0 && rfdData.crossDown) ? 10 :
+          (rfdData.value !== null && rfdData.value < 25 && (rfdData.delta ?? 0) < -5) ? 6 : 0;
+        if (rfdTopBonus >= 14) reasons.push("RFD bear divergence");
+        else if (rfdTopBonus >= 10) reasons.push("RFD flipped negative");
+        else if (rfdTopBonus >= 6) reasons.push("RFD force fading");
+
         const stop = recentHigh + atr * 0.5;
         const entryLow = price - atr * 0.1;
         const entryHigh = price + atr * 0.3;
@@ -221,7 +230,8 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
             (upperWickStrong ? 15 : 0) +
             (volRatio > 1.8 ? 12 : volRatio > 1.2 ? 6 : 0) +
             (rsiRolling ? 8 : 0) +
-            Math.min(15, distancePct * 4)
+            Math.min(15, distancePct * 4) +
+            rfdTopBonus
         );
 
         setup = {
