@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Loader2, X, AlertCircle, TrendingUp, TrendingDown, Minus, Bookmark, Check } from "lucide-react";
+import { Loader2, X, AlertCircle, TrendingUp, TrendingDown, Minus, Bookmark, Check, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { fetchKlines, formatPrice } from "@/lib/binance";
 import { snapshotFromCandles } from "@/lib/indicators";
 import { buildNewsPlan, type NewsItem, type NewsPlan } from "@/lib/news";
 import { plansClient, SAVED_PLANS_TABLE } from "@/lib/plans-client";
 import { getClientId } from "@/lib/client-id";
+import { addNewsSignal, hasNewsSignal, buildSignalId } from "@/lib/news-signals";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -23,6 +24,22 @@ export function NewsPlanModal({ open, onClose, news, symbol, mode, interval = "1
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pinned, setPinned] = useState(() => hasNewsSignal(buildSignalId(symbol, news.url, "manual")));
+
+  const pinToDashboard = () => {
+    if (!plan) return;
+    const base = symbol.replace(/USDT$/, "");
+    addNewsSignal({
+      symbol, base, mode, interval, source: "manual",
+      news: {
+        title: news.title, source: news.source, url: news.url,
+        publishedAt: news.publishedAt, sentiment: news.sentiment,
+      },
+      plan,
+    });
+    setPinned(true);
+    toast.success("Pinned to dashboard", { description: `${symbol} · ${plan.bias.toUpperCase()} signal added` });
+  };
 
   if (!open) return null;
 
@@ -179,7 +196,19 @@ export function NewsPlanModal({ open, onClose, news, symbol, mode, interval = "1
                 </ul>
               </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  onClick={pinToDashboard}
+                  disabled={pinned}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 font-mono text-xs font-bold uppercase tracking-wider",
+                    pinned
+                      ? "border-warning bg-warning/10 text-warning"
+                      : "border-warning bg-warning/10 text-warning hover:bg-warning/20"
+                  )}
+                >
+                  {pinned ? <><Check className="size-3.5" /> Pinned to Dashboard</> : <><Pin className="size-3.5" /> Pin to Dashboard</>}
+                </button>
                 <button
                   onClick={save}
                   disabled={saved}
