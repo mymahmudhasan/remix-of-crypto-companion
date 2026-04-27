@@ -730,7 +730,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "get_indicators",
-      description: "Compute live technical indicators (RSI-14, EMA 20/50/200, MACD, recent range) for a symbol on a chosen timeframe. Use for 'is X overbought?', 'what's the trend?', 'is MACD bullish?'.",
+      description: "Compute live technical indicators (RSI-14, EMA 20/50/200, MACD, RFD, recent range) for a symbol on a chosen timeframe. RFD = Rate of Force Development (-100..+100): acceleration of volume-weighted momentum — the *derivative* of force, leading-edge vs MACD. Use for 'is X overbought?', 'is the rally losing force?', 'is bear pressure accelerating?', divergence checks.",
       parameters: {
         type: "object",
         properties: {
