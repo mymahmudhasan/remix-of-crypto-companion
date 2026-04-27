@@ -54,6 +54,11 @@ const Index = () => {
           </div>
         </div>
 
+        {/* RFD Analysis — Rate of Force Development with MACD-style breakdown + buy/sell verdict */}
+        <div className="h-[520px]">
+          <RfdPanel symbol={symbol} />
+        </div>
+
         {/* Reversal radar full width — high-priority low-risk setups */}
         <div className="h-[460px]">
           <ReversalRadar onSelect={setSymbol} />
