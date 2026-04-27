@@ -11,6 +11,7 @@ import { SuggestedTrades } from "@/components/SuggestedTrades";
 import { ReversalRadar } from "@/components/ReversalRadar";
 import { CrashRiskRadar } from "@/components/CrashRiskRadar";
 import { RfdPanel } from "@/components/RfdPanel";
+import { NewsSignalsCard } from "@/components/NewsSignalsCard";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
