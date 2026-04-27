@@ -427,72 +427,123 @@ export function CrashRiskRadar({ onSelect }: { onSelect?: (sym: string) => void 
         <ul className="divide-y divide-border">
           {filtered.map((it) => {
             const tier = TIER_STYLES[it.tier];
+            const isOpen = expanded.has(it.symbol);
+            const sd = it.setup;
+            const sideColor = sd.side === "short"
+              ? "text-bear bg-bear/15 border-bear/30"
+              : "text-bull bg-bull/15 border-bull/30";
             return (
-              <li
-                key={it.symbol}
-                onClick={() => onSelect?.(it.symbol)}
-                className="cursor-pointer px-3 py-2 transition-colors hover:bg-surface-elevated/60"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded border px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
-                        tier.cls,
-                        tier.pulse && "animate-pulse"
-                      )}
-                      title={`Risk score: ${it.riskScore}/100`}
-                    >
-                      <span className="leading-none">{tier.emoji}</span>
-                      {tier.label}
-                    </span>
-                    <span className="truncate font-mono text-sm font-semibold text-foreground">
-                      {it.symbol.replace("USDT", "")}
-                    </span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      {formatPrice(it.price)}
-                    </span>
-                    <span
-                      className={cn(
-                        "font-mono text-[10px] tabular-nums",
-                        it.change24h >= 0 ? "text-bull" : "text-bear"
-                      )}
-                    >
-                      {it.change24h >= 0 ? "+" : ""}{it.change24h.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <div
-                      className="h-1.5 w-16 overflow-hidden rounded bg-surface-elevated"
-                      title={`Risk ${it.riskScore}/100`}
-                    >
-                      <div
+              <Fragment key={it.symbol}>
+                <li
+                  className="cursor-pointer px-3 py-2 transition-colors hover:bg-surface-elevated/60"
+                  onClick={() => toggleExpand(it.symbol)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ChevronDown className={cn("size-3 shrink-0 text-muted-foreground transition-transform", isOpen ? "rotate-0" : "-rotate-90")} />
+                      <span
                         className={cn(
-                          "h-full",
-                          it.tier === "extreme" ? "bg-bear" : it.tier === "high" ? "bg-bear/70" : "bg-warning"
+                          "inline-flex items-center gap-1 rounded border px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
+                          tier.cls,
+                          tier.pulse && "animate-pulse"
                         )}
-                        style={{ width: `${it.riskScore}%` }}
-                      />
+                        title={`Risk score: ${it.riskScore}/100`}
+                      >
+                        <span className="leading-none">{tier.emoji}</span>
+                        {tier.label}
+                      </span>
+                      <span className="truncate font-mono text-sm font-semibold text-foreground">
+                        {it.symbol.replace("USDT", "")}
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {formatPrice(it.price)}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono text-[10px] tabular-nums",
+                          it.change24h >= 0 ? "text-bull" : "text-bear"
+                        )}
+                      >
+                        {it.change24h >= 0 ? "+" : ""}{it.change24h.toFixed(1)}%
+                      </span>
+                      <span
+                        className={cn(
+                          "ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
+                          sideColor
+                        )}
+                        title={`Suggested trade setup · R:R up to ${sd.rr3.toFixed(1)}`}
+                      >
+                        {sd.side === "short" ? <TrendingDown className="size-2.5" /> : <TrendingUp className="size-2.5" />}
+                        {sd.side} · {sd.rr2.toFixed(1)}R
+                      </span>
                     </div>
-                    <span className="font-mono text-[10px] font-bold tabular-nums text-foreground">
-                      {it.riskScore}
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div
+                        className="h-1.5 w-16 overflow-hidden rounded bg-surface-elevated"
+                        title={`Risk ${it.riskScore}/100`}
+                      >
+                        <div
+                          className={cn(
+                            "h-full",
+                            it.tier === "extreme" ? "bg-bear" : it.tier === "high" ? "bg-bear/70" : "bg-warning"
+                          )}
+                          style={{ width: `${it.riskScore}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-[10px] font-bold tabular-nums text-foreground">
+                        {it.riskScore}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-1">
+                    {it.reasons.map((r, idx) => (
+                      <span
+                        key={idx}
+                        className="font-mono text-[9.5px] text-muted-foreground"
+                      >
+                        • {r}
+                      </span>
+                    ))}
+                    <span className="ml-auto font-mono text-[9px] text-muted-foreground/70">
+                      Vol {formatCompact(it.quoteVol)}
                     </span>
                   </div>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-1">
-                  {it.reasons.map((r, idx) => (
-                    <span
-                      key={idx}
-                      className="font-mono text-[9.5px] text-muted-foreground"
-                    >
-                      • {r}
-                    </span>
-                  ))}
-                  <span className="ml-auto font-mono text-[9px] text-muted-foreground/70">
-                    Vol {formatCompact(it.quoteVol)}
-                  </span>
-                </div>
-              </li>
+                </li>
+                {isOpen && (
+                  <li className="bg-surface-elevated/40 px-4 py-3">
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={cn("inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", sideColor)}>
+                            {sd.side === "short" ? <TrendingDown className="size-3" /> : <TrendingUp className="size-3" />}
+                            {sd.side === "short" ? "SHORT" : "LONG"}
+                          </span>
+                          <span className="font-mono text-[11px] text-muted-foreground">{sd.rationale}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px] sm:grid-cols-3">
+                          <SetupField label="Entry zone" value={`${formatPrice(sd.entryLow)} – ${formatPrice(sd.entryHigh)}`} />
+                          <SetupField label="Stop loss" value={formatPrice(sd.stop)} valueClass="text-bear" icon={<Shield className="size-3 text-bear" />} />
+                          <SetupField label="Risk" value={`${sd.riskPct.toFixed(2)}%`} valueClass="text-warning" />
+                          <SetupField label="TP1" value={formatPrice(sd.tp1)} valueClass={sd.side === "short" ? "text-bull" : "text-bull"} icon={<Target className="size-3 text-bull" />} extra={`${sd.rr1.toFixed(2)}R`} />
+                          <SetupField label="TP2" value={formatPrice(sd.tp2)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr2.toFixed(2)}R`} />
+                          <SetupField label="TP3" value={formatPrice(sd.tp3)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr3.toFixed(2)}R`} />
+                        </div>
+                        <div className="font-mono text-[10px] text-muted-foreground">
+                          ATR(14): {formatPrice(sd.atr)} · Reward potential up to <span className="font-bold text-bull">{sd.rr3.toFixed(1)}× risk</span> if TP3 hits.
+                        </div>
+                      </div>
+                      <div className="flex items-end justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSelect?.(it.symbol); }}
+                          className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20"
+                        >
+                          Open chart →
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                )}
+              </Fragment>
             );
           })}
         </ul>
