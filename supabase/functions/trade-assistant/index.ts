@@ -919,7 +919,7 @@ Never guarantee outcomes. Educational analysis only — not financial advice.
 
 TOOLS — call them whenever you need fresh data:
 - get_price for current price / 24h change.
-- get_indicators for RSI / EMA / MACD verdict (overbought, trend).
+- get_indicators for RSI / EMA / MACD / RFD verdict. RFD (Rate of Force Development, -100..+100) is the *acceleration* of volume-weighted momentum — leading-edge vs MACD: |RFD|>60 = explosive force, cross-zero = force-regime flip, divergence vs price = exhaustion. ALWAYS report RFD alongside MACD when discussing momentum/trend strength.
 - get_gas for ETH/L2 gas in gwei.
 - get_news_sentiment for headlines + bull/bear bias.
 - get_orderbook_heatmap for liquidity walls, bid/ask imbalance, and key support/resistance from resting orders.
