@@ -387,3 +387,30 @@ function MoverList({ title, rows, variant, icon: Icon }: { title: string; rows: 
     </div>
   );
 }
+
+function Field({
+  label,
+  value,
+  valueClass,
+  icon,
+  extra,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+  icon?: React.ReactNode;
+  extra?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 rounded border border-border/60 bg-surface px-2 py-1">
+      <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {icon}
+        {label}
+      </span>
+      <span className="flex items-baseline gap-1.5 tabular-nums">
+        <span className={cn("font-semibold", valueClass)}>{value}</span>
+        {extra && <span className="text-[10px] text-muted-foreground">{extra}</span>}
+      </span>
+    </div>
+  );
+}
