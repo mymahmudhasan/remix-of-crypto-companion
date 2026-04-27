@@ -25,73 +25,112 @@ const Index = () => {
   const [closes, setCloses] = useState<number[]>([]);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin">
-      <div className="flex flex-col gap-2 p-2">
-        {/* Top: market overview */}
-        <MarketStatsBar />
-        <MarketHero onSelect={setSymbol} selected={symbol} />
-        <QuickActions />
+    <div className="h-full overflow-y-auto scrollbar-thin text-base">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-6">
+        {/* Section: Market Overview */}
+        <Section title="Market Overview" subtitle="Global stats & top movers at a glance">
+          <MarketStatsBar />
+          <MarketHero onSelect={setSymbol} selected={symbol} />
+          <QuickActions />
+        </Section>
 
-        {/* Main grid: chart + signals + AI + movers */}
-        <div className="grid gap-2 lg:grid-cols-[260px_1fr_340px]">
-          <div className="hidden h-[640px] lg:block">
+        {/* Section: Chart */}
+        <Section title="Chart" subtitle={`${symbol} · ${interval}`}>
+          <div className="panel flex min-h-[520px] flex-col">
+            <SymbolHeader symbol={symbol} interval={interval} onIntervalChange={setInterval} />
+            <div className="min-h-[460px] flex-1">
+              <CandleChart symbol={symbol} interval={interval} onData={setCloses} />
+            </div>
+          </div>
+        </Section>
+
+        {/* Section: Watchlist */}
+        <Section title="Watchlist" subtitle="Tap a symbol to load it in the chart">
+          <div className="min-h-[360px]">
             <Watchlist symbols={WATCHLIST} selected={symbol} onSelect={setSymbol} />
           </div>
+        </Section>
 
-          <div className="flex flex-col gap-2">
-            <div className="panel flex h-[420px] flex-col">
-              <SymbolHeader symbol={symbol} interval={interval} onIntervalChange={setInterval} />
-              <div className="flex-1">
-                <CandleChart symbol={symbol} interval={interval} onData={setCloses} />
-              </div>
-            </div>
-            <div className="h-[212px]">
-              <AIAssistant symbol={symbol} interval={interval} closes={closes} />
-            </div>
+        {/* Section: AI Assistant */}
+        <Section title="AI Assistant" subtitle="Live commentary on the selected symbol">
+          <div className="min-h-[280px]">
+            <AIAssistant symbol={symbol} interval={interval} closes={closes} />
           </div>
+        </Section>
 
-          <div className="hidden h-[640px] lg:block">
+        {/* Section: Signals */}
+        <Section title="Signals" subtitle="Indicator-based buy/sell signals for the selected symbol">
+          <div className="min-h-[520px]">
             <SignalsPanel closes={closes} symbol={symbol} />
           </div>
-        </div>
+        </Section>
 
-        {/* RFD Analysis — Rate of Force Development with MACD-style breakdown + buy/sell verdict */}
-        <div className="h-[520px]">
-          <RfdPanel symbol={symbol} />
-        </div>
+        {/* Section: News Signals */}
+        <Section title="News Signals" subtitle="Trade ideas generated from latest news">
+          <NewsSignalsCard onSelect={setSymbol} />
+        </Section>
 
-        {/* Reversal radar full width — high-priority low-risk setups */}
-        <div className="h-[460px]">
-          <ReversalRadar onSelect={setSymbol} />
-        </div>
+        {/* Section: RFD Analysis */}
+        <Section title="RFD Analysis" subtitle="Rate of Force Development with MACD-style breakdown">
+          <div className="min-h-[560px]">
+            <RfdPanel symbol={symbol} />
+          </div>
+        </Section>
 
-        {/* Crash Risk Radar — tokens with high probability of crashing */}
-        <div className="h-[460px]">
-          <CrashRiskRadar onSelect={setSymbol} />
-        </div>
+        {/* Section: Reversal Radar */}
+        <Section title="Reversal Radar" subtitle="High-priority, low-risk reversal setups">
+          <div className="min-h-[520px]">
+            <ReversalRadar onSelect={setSymbol} />
+          </div>
+        </Section>
 
-        {/* Bottom: suggested trades + top movers */}
-        <div className="grid gap-2 lg:grid-cols-2">
-          <div className="h-[420px]">
+        {/* Section: Crash Risk Radar */}
+        <Section title="Crash Risk Radar" subtitle="Tokens with elevated crash probability">
+          <div className="min-h-[520px]">
+            <CrashRiskRadar onSelect={setSymbol} />
+          </div>
+        </Section>
+
+        {/* Section: Suggested Trades */}
+        <Section title="Suggested Trades" subtitle="Curated setups based on current market conditions">
+          <div className="min-h-[460px]">
             <SuggestedTrades onSelect={setSymbol} />
           </div>
-          <div className="h-[420px]">
+        </Section>
+
+        {/* Section: Top Movers */}
+        <Section title="Top Movers" subtitle="Biggest gainers and losers over 24h">
+          <div className="min-h-[460px]">
             <TopMovers onSelect={setSymbol} />
           </div>
-        </div>
-
-        {/* Mobile-only stacks */}
-        <div className="grid gap-2 lg:hidden">
-          <div className="h-[280px]">
-            <SignalsPanel closes={closes} symbol={symbol} />
-          </div>
-          <div className="h-[320px]">
-            <Watchlist symbols={WATCHLIST} selected={symbol} onSelect={setSymbol} />
-          </div>
-        </div>
+        </Section>
       </div>
     </div>
   );
 };
+
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <header className="flex flex-col gap-1 border-b border-border/60 pb-2">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground md:text-base">{subtitle}</p>
+        )}
+      </header>
+      <div className="flex flex-col gap-3">{children}</div>
+    </section>
+  );
+}
 
 export default Index;
