@@ -244,11 +244,13 @@ async function evalCrashRisk(
     else if (score >= 60) tier = "high";
     else tier = "elevated";
 
+    const setup = buildCrashSetup(price, atr, tier, distFromHighPct, lastRsi);
     return {
       symbol, price, change24h, riskScore: score, tier,
-      rsi: lastRsi, atrPct, distFromHighPct, volRatio, bearishVolRatio, consecBears,
+      rsi: lastRsi, atrPct, atrAbs: atr, distFromHighPct, volRatio, bearishVolRatio, consecBears,
       reasons: reasons.slice(0, 4),
       quoteVol,
+      setup,
     };
   } catch {
     return null;
