@@ -1,8 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import { Flame, TrendingUp, TrendingDown, Activity, RefreshCw, Search } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Activity, RefreshCw, Search, ChevronDown, ChevronRight, Target, Shield, TrendingUp as TUp } from "lucide-react";
 import { fetch24h, fetchKlines, formatCompact, formatPrice } from "@/lib/binance";
 import { SCANNER_UNIVERSE, tickerToRow, type ScannerRow } from "@/lib/scanner";
 import { cn } from "@/lib/utils";
+
+interface TradeSetup {
+  side: "long" | "short";
+  entry: number;
+  entryLow: number;
+  entryHigh: number;
+  stop: number;
+  tp1: number;
+  tp2: number;
+  tp3: number;
+  riskPct: number;     // % from entry to stop
+  rr1: number;
+  rr2: number;
+  rr3: number;
+  atr: number;
+  rationale: string;
+}
 
 interface SpikeRow {
   symbol: string;
@@ -12,6 +29,60 @@ interface SpikeRow {
   volRatio: number; // recent vol vs 20-bar avg
   thrustPct: number; // close vs prev close
   verdict: "pump" | "dump" | "watch";
+  setup: TradeSetup;
+}
+
+function buildSetup(
+  last: number,
+  atr: number,
+  thrustPct: number,
+  volRatio: number,
+  verdict: "pump" | "dump" | "watch"
+): TradeSetup {
+  // Pumps & "watch" with positive thrust → fade short into resistance OR breakout long.
+  // Heuristic: extreme pumps (vol ≥ 5×, thrust ≥ 2%) → mean-reversion SHORT (exhaustion).
+  // Moderate pumps → breakout LONG with tight invalidation.
+  // Dumps → mean-reversion LONG (capitulation bounce).
+  const extremePump = verdict === "pump" && (volRatio >= 5 || Math.abs(thrustPct) >= 2);
+  const side: "long" | "short" = verdict === "dump" ? "long" : extremePump ? "short" : "long";
+  const a = atr > 0 ? atr : last * 0.01;
+
+  let entry: number, stop: number, tp1: number, tp2: number, tp3: number, rationale: string;
+  if (side === "long" && verdict === "dump") {
+    // Buy the bounce — entry slightly above current, stop below recent low.
+    entry = last + a * 0.15;
+    stop = last - a * 1.2;
+    tp1 = entry + a * 1.0;
+    tp2 = entry + a * 2.0;
+    tp3 = entry + a * 3.5;
+    rationale = "Capitulation bounce — mean-reversion long after volume dump";
+  } else if (side === "short") {
+    // Fade the pump — entry slightly above last, stop above thrust high.
+    entry = last + a * 0.2;
+    stop = last + a * 1.5;
+    tp1 = entry - a * 1.2;
+    tp2 = entry - a * 2.4;
+    tp3 = entry - a * 3.8;
+    rationale = "Exhaustion fade — extreme volume + price thrust = late buyers";
+  } else {
+    // Breakout long — buy continuation, stop below thrust candle.
+    entry = last + a * 0.1;
+    stop = last - a * 1.0;
+    tp1 = entry + a * 1.2;
+    tp2 = entry + a * 2.5;
+    tp3 = entry + a * 4.0;
+    rationale = "Volume breakout continuation — momentum long with trailing stop";
+  }
+
+  const entryLow = Math.min(entry, side === "long" ? entry - a * 0.15 : entry);
+  const entryHigh = Math.max(entry, side === "short" ? entry + a * 0.15 : entry);
+  const risk = Math.abs(entry - stop);
+  const riskPct = (risk / entry) * 100;
+  const rr1 = Math.abs(tp1 - entry) / risk;
+  const rr2 = Math.abs(tp2 - entry) / risk;
+  const rr3 = Math.abs(tp3 - entry) / risk;
+
+  return { side, entry, entryLow, entryHigh, stop, tp1, tp2, tp3, riskPct, rr1, rr2, rr3, atr: a, rationale };
 }
 
 export default function PumpDump() {
