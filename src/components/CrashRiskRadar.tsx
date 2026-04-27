@@ -272,6 +272,14 @@ export function CrashRiskRadar({ onSelect }: { onSelect?: (sym: string) => void 
   const [tierFilter, setTierFilter] = useState<"all" | CrashRisk["tier"]>("all");
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (sym: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(sym)) next.delete(sym); else next.add(sym);
+      return next;
+    });
+  };
 
   const refresh = useCallback(() => setRefreshTick((t) => t + 1), []);
 
