@@ -10,6 +10,7 @@ import { QuickActions } from "@/components/QuickActions";
 import { SuggestedTrades } from "@/components/SuggestedTrades";
 import { ReversalRadar } from "@/components/ReversalRadar";
 import { CrashRiskRadar } from "@/components/CrashRiskRadar";
+import { RfdPanel } from "@/components/RfdPanel";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
@@ -51,6 +52,11 @@ const Index = () => {
           <div className="hidden h-[640px] lg:block">
             <SignalsPanel closes={closes} symbol={symbol} />
           </div>
+        </div>
+
+        {/* RFD Analysis — Rate of Force Development with MACD-style breakdown + buy/sell verdict */}
+        <div className="h-[520px]">
+          <RfdPanel symbol={symbol} />
         </div>
 
         {/* Reversal radar full width — high-priority low-risk setups */}
