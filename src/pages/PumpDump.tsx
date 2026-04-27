@@ -254,12 +254,14 @@ export default function PumpDump() {
           <table className="w-full border-separate border-spacing-0">
             <thead className="sticky top-0 bg-surface/95 backdrop-blur">
               <tr className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                <th className="border-b border-border px-2 py-2 text-left w-6"></th>
                 <th className="border-b border-border px-3 py-2 text-left">Pair</th>
                 <th className="border-b border-border px-3 py-2 text-right">Verdict</th>
                 <th className="border-b border-border px-3 py-2 text-right">Last</th>
                 <th className="border-b border-border px-3 py-2 text-right hidden sm:table-cell">Thrust 5m</th>
                 <th className="border-b border-border px-3 py-2 text-right hidden md:table-cell">Δ 1h</th>
                 <th className="border-b border-border px-3 py-2 text-right">Vol ×</th>
+                <th className="border-b border-border px-3 py-2 text-right">Setup</th>
               </tr>
             </thead>
             <tbody>
@@ -267,25 +269,74 @@ export default function PumpDump() {
                 const v = s.verdict;
                 const color = v === "pump" ? "bg-bull/15 text-bull border-bull/30" : v === "dump" ? "bg-bear/15 text-bear border-bear/30" : "bg-warning/15 text-warning border-warning/30";
                 const label = v === "pump" ? "🚀 PUMP" : v === "dump" ? "💥 DUMP" : "👀 WATCH";
+                const isOpen = expanded.has(s.symbol);
+                const sd = s.setup;
+                const sideColor = sd.side === "long" ? "text-bull bg-bull/15 border-bull/30" : "text-bear bg-bear/15 border-bear/30";
                 return (
-                  <tr key={s.symbol} className="hover:bg-surface-hover">
-                    <td className="border-b border-border/50 px-3 py-2 font-mono text-sm font-semibold">{s.base}<span className="text-[10px] text-muted-foreground">/USDT</span></td>
-                    <td className="border-b border-border/50 px-3 py-2 text-right">
-                      <span className={cn("inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", color)}>{label}</span>
-                    </td>
-                    <td className="border-b border-border/50 px-3 py-2 text-right font-mono text-sm tabular-nums">{formatPrice(s.last)}</td>
-                    <td className={cn("border-b border-border/50 px-3 py-2 text-right font-mono text-xs font-semibold tabular-nums hidden sm:table-cell", s.thrustPct >= 0 ? "text-bull" : "text-bear")}>
-                      {s.thrustPct >= 0 ? "+" : ""}{s.thrustPct.toFixed(2)}%
-                    </td>
-                    <td className={cn("border-b border-border/50 px-3 py-2 text-right font-mono text-xs tabular-nums hidden md:table-cell", s.changePct1h >= 0 ? "text-bull" : "text-bear")}>
-                      {s.changePct1h >= 0 ? "+" : ""}{s.changePct1h.toFixed(2)}%
-                    </td>
-                    <td className="border-b border-border/50 px-3 py-2 text-right font-mono text-sm font-bold text-warning">{s.volRatio.toFixed(1)}×</td>
-                  </tr>
+                  <>
+                    <tr key={s.symbol} className="cursor-pointer hover:bg-surface-hover" onClick={() => toggleExpand(s.symbol)}>
+                      <td className="border-b border-border/50 px-2 py-2 text-muted-foreground">
+                        <ChevronDown className={cn("size-3.5 transition-transform", isOpen ? "rotate-0" : "-rotate-90")} />
+                      </td>
+                      <td className="border-b border-border/50 px-3 py-2 font-mono text-sm font-semibold">{s.base}<span className="text-[10px] text-muted-foreground">/USDT</span></td>
+                      <td className="border-b border-border/50 px-3 py-2 text-right">
+                        <span className={cn("inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", color)}>{label}</span>
+                      </td>
+                      <td className="border-b border-border/50 px-3 py-2 text-right font-mono text-sm tabular-nums">{formatPrice(s.last)}</td>
+                      <td className={cn("border-b border-border/50 px-3 py-2 text-right font-mono text-xs font-semibold tabular-nums hidden sm:table-cell", s.thrustPct >= 0 ? "text-bull" : "text-bear")}>
+                        {s.thrustPct >= 0 ? "+" : ""}{s.thrustPct.toFixed(2)}%
+                      </td>
+                      <td className={cn("border-b border-border/50 px-3 py-2 text-right font-mono text-xs tabular-nums hidden md:table-cell", s.changePct1h >= 0 ? "text-bull" : "text-bear")}>
+                        {s.changePct1h >= 0 ? "+" : ""}{s.changePct1h.toFixed(2)}%
+                      </td>
+                      <td className="border-b border-border/50 px-3 py-2 text-right font-mono text-sm font-bold text-warning">{s.volRatio.toFixed(1)}×</td>
+                      <td className="border-b border-border/50 px-3 py-2 text-right">
+                        <span className={cn("inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", sideColor)}>
+                          {sd.side} · {sd.rr2.toFixed(1)}R
+                        </span>
+                      </td>
+                    </tr>
+                    {isOpen && (
+                      <tr key={`${s.symbol}-setup`} className="bg-surface-elevated/40">
+                        <td colSpan={8} className="border-b border-border/50 px-4 py-3">
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className={cn("inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", sideColor)}>
+                                  {sd.side === "long" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                                  {sd.side === "long" ? "LONG" : "SHORT"}
+                                </span>
+                                <span className="font-mono text-[11px] text-muted-foreground">{sd.rationale}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px] sm:grid-cols-3">
+                                <Field label="Entry zone" value={`${formatPrice(sd.entryLow)} – ${formatPrice(sd.entryHigh)}`} />
+                                <Field label="Stop loss" value={formatPrice(sd.stop)} valueClass="text-bear" icon={<Shield className="size-3 text-bear" />} />
+                                <Field label="Risk" value={`${sd.riskPct.toFixed(2)}%`} valueClass="text-warning" />
+                                <Field label="TP1" value={formatPrice(sd.tp1)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr1.toFixed(2)}R`} />
+                                <Field label="TP2" value={formatPrice(sd.tp2)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr2.toFixed(2)}R`} />
+                                <Field label="TP3" value={formatPrice(sd.tp3)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr3.toFixed(2)}R`} />
+                              </div>
+                              <div className="font-mono text-[10px] text-muted-foreground">
+                                ATR(14·5m): {formatPrice(sd.atr)} · Reward potential up to <span className="font-bold text-bull">{sd.rr3.toFixed(1)}× risk</span> if TP3 hits.
+                              </div>
+                            </div>
+                            <div className="flex items-end justify-end">
+                              <a
+                                href={`/?symbol=${s.symbol}`}
+                                className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20"
+                              >
+                                Open chart →
+                              </a>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               })}
               {!scanning && filteredSpikes.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">
+                <tr><td colSpan={8} className="px-3 py-10 text-center font-mono text-xs text-muted-foreground">
                   {error
                     ? <span className="text-bear">⚠ {error}</span>
                     : q && spikes.length > 0
