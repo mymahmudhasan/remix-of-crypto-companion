@@ -1,8 +1,76 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { fetchKlines, fetch24h, formatPrice, formatCompact } from "@/lib/binance";
 import { rsi, ema, rfd } from "@/lib/indicators";
-import { AlertTriangle, Loader2, RefreshCw, Skull, TrendingDown, Flame } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Skull, TrendingDown, TrendingUp, ChevronDown, Target, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface CrashTradeSetup {
+  side: "short" | "long";
+  entry: number;
+  entryLow: number;
+  entryHigh: number;
+  stop: number;
+  tp1: number;
+  tp2: number;
+  tp3: number;
+  riskPct: number;
+  rr1: number;
+  rr2: number;
+  rr3: number;
+  atr: number;
+  rationale: string;
+}
+
+function buildCrashSetup(
+  price: number,
+  atrAbs: number,
+  tier: "extreme" | "high" | "elevated",
+  distFromHighPct: number,
+  rsiVal: number,
+): CrashTradeSetup {
+  const a = atrAbs > 0 ? atrAbs : price * 0.01;
+  // Already broken down hard + oversold → capitulation long (mean-reversion bounce)
+  const capitulation = distFromHighPct < -18 && rsiVal < 35;
+  const side: "short" | "long" = capitulation ? "long" : "short";
+
+  let entry: number, stop: number, tp1: number, tp2: number, tp3: number, rationale: string;
+
+  if (side === "short") {
+    // Fade strength — entry slightly above current on a retest, stop above swing/ATR buffer.
+    // Tier scales aggression: extreme → tighter stop, larger targets.
+    const stopMult = tier === "extreme" ? 1.4 : tier === "high" ? 1.7 : 2.0;
+    const tp1Mult = tier === "extreme" ? 1.5 : 1.2;
+    const tp2Mult = tier === "extreme" ? 3.0 : 2.4;
+    const tp3Mult = tier === "extreme" ? 5.0 : 4.0;
+    entry = price + a * 0.2;
+    stop = price + a * stopMult;
+    tp1 = entry - a * tp1Mult;
+    tp2 = entry - a * tp2Mult;
+    tp3 = entry - a * tp3Mult;
+    rationale =
+      tier === "extreme"
+        ? "Distribution fade — ride the crash; trail stop aggressively below LH"
+        : "Short into bounce/retest — bearish structure + sell volume dominance";
+  } else {
+    // Capitulation bounce long — entry above current confirmation, tight stop below low.
+    entry = price + a * 0.15;
+    stop = price - a * 1.2;
+    tp1 = entry + a * 1.2;
+    tp2 = entry + a * 2.4;
+    tp3 = entry + a * 3.8;
+    rationale = "Capitulation bounce — already off highs + oversold RSI = mean-reversion long";
+  }
+
+  const entryLow = side === "short" ? entry : Math.min(entry, entry - a * 0.15);
+  const entryHigh = side === "short" ? entry + a * 0.2 : entry;
+  const risk = Math.abs(entry - stop);
+  const riskPct = (risk / entry) * 100;
+  const rr1 = Math.abs(tp1 - entry) / risk;
+  const rr2 = Math.abs(tp2 - entry) / risk;
+  const rr3 = Math.abs(tp3 - entry) / risk;
+
+  return { side, entry, entryLow, entryHigh, stop, tp1, tp2, tp3, riskPct, rr1, rr2, rr3, atr: a, rationale };
+}
 
 type Timeframe = "15m" | "1h" | "4h";
 const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
@@ -16,12 +84,14 @@ interface CrashRisk {
   tier: "extreme" | "high" | "elevated";
   rsi: number;
   atrPct: number;
+  atrAbs: number;
   distFromHighPct: number; // distance below 50-bar high (negative if recent ATH break)
   volRatio: number; // last bar vs 20-bar avg
   bearishVolRatio: number; // last 5 bears vs 5 bulls volume
   consecBears: number;
   reasons: string[];
   quoteVol: number;
+  setup: CrashTradeSetup;
 }
 
 const STABLE_EXCLUDE = new Set([
@@ -60,7 +130,6 @@ async function evalCrashRisk(
 
     const closes = klines.map((k) => k.close);
     const highs = klines.map((k) => k.high);
-    const lows = klines.map((k) => k.low);
     const vols = klines.map((k) => k.volume);
     const last = klines[klines.length - 1];
     const price = last.close;
@@ -174,11 +243,13 @@ async function evalCrashRisk(
     else if (score >= 60) tier = "high";
     else tier = "elevated";
 
+    const setup = buildCrashSetup(price, atr, tier, distFromHighPct, lastRsi);
     return {
       symbol, price, change24h, riskScore: score, tier,
-      rsi: lastRsi, atrPct, distFromHighPct, volRatio, bearishVolRatio, consecBears,
+      rsi: lastRsi, atrPct, atrAbs: atr, distFromHighPct, volRatio, bearishVolRatio, consecBears,
       reasons: reasons.slice(0, 4),
       quoteVol,
+      setup,
     };
   } catch {
     return null;
@@ -200,6 +271,14 @@ export function CrashRiskRadar({ onSelect }: { onSelect?: (sym: string) => void 
   const [tierFilter, setTierFilter] = useState<"all" | CrashRisk["tier"]>("all");
   const [refreshTick, setRefreshTick] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (sym: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(sym)) next.delete(sym); else next.add(sym);
+      return next;
+    });
+  };
 
   const refresh = useCallback(() => setRefreshTick((t) => t + 1), []);
 
@@ -347,72 +426,123 @@ export function CrashRiskRadar({ onSelect }: { onSelect?: (sym: string) => void 
         <ul className="divide-y divide-border">
           {filtered.map((it) => {
             const tier = TIER_STYLES[it.tier];
+            const isOpen = expanded.has(it.symbol);
+            const sd = it.setup;
+            const sideColor = sd.side === "short"
+              ? "text-bear bg-bear/15 border-bear/30"
+              : "text-bull bg-bull/15 border-bull/30";
             return (
-              <li
-                key={it.symbol}
-                onClick={() => onSelect?.(it.symbol)}
-                className="cursor-pointer px-3 py-2 transition-colors hover:bg-surface-elevated/60"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded border px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
-                        tier.cls,
-                        tier.pulse && "animate-pulse"
-                      )}
-                      title={`Risk score: ${it.riskScore}/100`}
-                    >
-                      <span className="leading-none">{tier.emoji}</span>
-                      {tier.label}
-                    </span>
-                    <span className="truncate font-mono text-sm font-semibold text-foreground">
-                      {it.symbol.replace("USDT", "")}
-                    </span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      {formatPrice(it.price)}
-                    </span>
-                    <span
-                      className={cn(
-                        "font-mono text-[10px] tabular-nums",
-                        it.change24h >= 0 ? "text-bull" : "text-bear"
-                      )}
-                    >
-                      {it.change24h >= 0 ? "+" : ""}{it.change24h.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <div
-                      className="h-1.5 w-16 overflow-hidden rounded bg-surface-elevated"
-                      title={`Risk ${it.riskScore}/100`}
-                    >
-                      <div
+              <Fragment key={it.symbol}>
+                <li
+                  className="cursor-pointer px-3 py-2 transition-colors hover:bg-surface-elevated/60"
+                  onClick={() => toggleExpand(it.symbol)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ChevronDown className={cn("size-3 shrink-0 text-muted-foreground transition-transform", isOpen ? "rotate-0" : "-rotate-90")} />
+                      <span
                         className={cn(
-                          "h-full",
-                          it.tier === "extreme" ? "bg-bear" : it.tier === "high" ? "bg-bear/70" : "bg-warning"
+                          "inline-flex items-center gap-1 rounded border px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
+                          tier.cls,
+                          tier.pulse && "animate-pulse"
                         )}
-                        style={{ width: `${it.riskScore}%` }}
-                      />
+                        title={`Risk score: ${it.riskScore}/100`}
+                      >
+                        <span className="leading-none">{tier.emoji}</span>
+                        {tier.label}
+                      </span>
+                      <span className="truncate font-mono text-sm font-semibold text-foreground">
+                        {it.symbol.replace("USDT", "")}
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {formatPrice(it.price)}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono text-[10px] tabular-nums",
+                          it.change24h >= 0 ? "text-bull" : "text-bear"
+                        )}
+                      >
+                        {it.change24h >= 0 ? "+" : ""}{it.change24h.toFixed(1)}%
+                      </span>
+                      <span
+                        className={cn(
+                          "ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wider whitespace-nowrap",
+                          sideColor
+                        )}
+                        title={`Suggested trade setup · R:R up to ${sd.rr3.toFixed(1)}`}
+                      >
+                        {sd.side === "short" ? <TrendingDown className="size-2.5" /> : <TrendingUp className="size-2.5" />}
+                        {sd.side} · {sd.rr2.toFixed(1)}R
+                      </span>
                     </div>
-                    <span className="font-mono text-[10px] font-bold tabular-nums text-foreground">
-                      {it.riskScore}
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div
+                        className="h-1.5 w-16 overflow-hidden rounded bg-surface-elevated"
+                        title={`Risk ${it.riskScore}/100`}
+                      >
+                        <div
+                          className={cn(
+                            "h-full",
+                            it.tier === "extreme" ? "bg-bear" : it.tier === "high" ? "bg-bear/70" : "bg-warning"
+                          )}
+                          style={{ width: `${it.riskScore}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-[10px] font-bold tabular-nums text-foreground">
+                        {it.riskScore}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-1">
+                    {it.reasons.map((r, idx) => (
+                      <span
+                        key={idx}
+                        className="font-mono text-[9.5px] text-muted-foreground"
+                      >
+                        • {r}
+                      </span>
+                    ))}
+                    <span className="ml-auto font-mono text-[9px] text-muted-foreground/70">
+                      Vol {formatCompact(it.quoteVol)}
                     </span>
                   </div>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-1">
-                  {it.reasons.map((r, idx) => (
-                    <span
-                      key={idx}
-                      className="font-mono text-[9.5px] text-muted-foreground"
-                    >
-                      • {r}
-                    </span>
-                  ))}
-                  <span className="ml-auto font-mono text-[9px] text-muted-foreground/70">
-                    Vol {formatCompact(it.quoteVol)}
-                  </span>
-                </div>
-              </li>
+                </li>
+                {isOpen && (
+                  <li className="bg-surface-elevated/40 px-4 py-3">
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={cn("inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", sideColor)}>
+                            {sd.side === "short" ? <TrendingDown className="size-3" /> : <TrendingUp className="size-3" />}
+                            {sd.side === "short" ? "SHORT" : "LONG"}
+                          </span>
+                          <span className="font-mono text-[11px] text-muted-foreground">{sd.rationale}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px] sm:grid-cols-3">
+                          <SetupField label="Entry zone" value={`${formatPrice(sd.entryLow)} – ${formatPrice(sd.entryHigh)}`} />
+                          <SetupField label="Stop loss" value={formatPrice(sd.stop)} valueClass="text-bear" icon={<Shield className="size-3 text-bear" />} />
+                          <SetupField label="Risk" value={`${sd.riskPct.toFixed(2)}%`} valueClass="text-warning" />
+                          <SetupField label="TP1" value={formatPrice(sd.tp1)} valueClass={sd.side === "short" ? "text-bull" : "text-bull"} icon={<Target className="size-3 text-bull" />} extra={`${sd.rr1.toFixed(2)}R`} />
+                          <SetupField label="TP2" value={formatPrice(sd.tp2)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr2.toFixed(2)}R`} />
+                          <SetupField label="TP3" value={formatPrice(sd.tp3)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr3.toFixed(2)}R`} />
+                        </div>
+                        <div className="font-mono text-[10px] text-muted-foreground">
+                          ATR(14): {formatPrice(sd.atr)} · Reward potential up to <span className="font-bold text-bull">{sd.rr3.toFixed(1)}× risk</span> if TP3 hits.
+                        </div>
+                      </div>
+                      <div className="flex items-end justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSelect?.(it.symbol); }}
+                          className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20"
+                        >
+                          Open chart →
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                )}
+              </Fragment>
             );
           })}
         </ul>
@@ -423,6 +553,21 @@ export function CrashRiskRadar({ onSelect }: { onSelect?: (sym: string) => void 
           Updated {new Date(lastUpdated).toLocaleTimeString()} · auto-refresh 5m · click row to load chart
         </div>
       )}
+    </div>
+  );
+}
+
+function SetupField({
+  label, value, valueClass, icon, extra,
+}: { label: string; value: string; valueClass?: string; icon?: React.ReactNode; extra?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1">
+        {icon}
+        <span className={cn("tabular-nums text-foreground", valueClass)}>{value}</span>
+        {extra && <span className="font-mono text-[9px] text-muted-foreground">{extra}</span>}
+      </span>
     </div>
   );
 }
