@@ -168,6 +168,10 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
     const volAvg = vols.slice(-21, -1).reduce((s, v) => s + v, 0) / 20;
     const volRatio = volAvg > 0 ? last.volume / volAvg : 1;
 
+    // RFD — acceleration of volume-weighted force. For top reversals we want
+    // bearish divergence (price up, RFD fading); for bottom reversals the mirror.
+    const rfdData = rfd(closes, vols, 5, 13);
+
     // Candle structure
     const range = Math.max(1e-9, last.high - last.low);
     const body = Math.abs(last.close - last.open);
