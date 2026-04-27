@@ -9,6 +9,7 @@ import { TopMovers } from "@/components/TopMovers";
 import { QuickActions } from "@/components/QuickActions";
 import { SuggestedTrades } from "@/components/SuggestedTrades";
 import { ReversalRadar } from "@/components/ReversalRadar";
+import { CrashRiskRadar } from "@/components/CrashRiskRadar";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
@@ -55,6 +56,11 @@ const Index = () => {
         {/* Reversal radar full width — high-priority low-risk setups */}
         <div className="h-[460px]">
           <ReversalRadar onSelect={setSymbol} />
+        </div>
+
+        {/* Crash Risk Radar — tokens with high probability of crashing */}
+        <div className="h-[460px]">
+          <CrashRiskRadar onSelect={setSymbol} />
         </div>
 
         {/* Bottom: suggested trades + top movers */}
