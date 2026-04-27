@@ -557,3 +557,18 @@ export function CrashRiskRadar({ onSelect }: { onSelect?: (sym: string) => void 
     </div>
   );
 }
+
+function SetupField({
+  label, value, valueClass, icon, extra,
+}: { label: string; value: string; valueClass?: string; icon?: React.ReactNode; extra?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1">
+        {icon}
+        <span className={cn("tabular-nums text-foreground", valueClass)}>{value}</span>
+        {extra && <span className="font-mono text-[9px] text-muted-foreground">{extra}</span>}
+      </span>
+    </div>
+  );
+}
