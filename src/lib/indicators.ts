@@ -398,6 +398,20 @@ export function scoreSignal(s: IndicatorSnapshot): ScoredSignal {
     reasons.push(`Volume ${s.volRatio.toFixed(2)}× the 20-bar average (confirmation)`);
   }
 
+  // RFD — Rate of Force Development. Acceleration of volume-weighted momentum.
+  if (s.rfd !== null) {
+    if (s.rfd > 60) { score += 18; reasons.push(`RFD ${s.rfd.toFixed(0)} explosive bull force`); }
+    else if (s.rfd > 25) { score += 10; reasons.push(`RFD ${s.rfd.toFixed(0)} bull force expanding`); }
+    else if (s.rfd < -60) { score -= 18; reasons.push(`RFD ${s.rfd.toFixed(0)} explosive bear force`); }
+    else if (s.rfd < -25) { score -= 10; reasons.push(`RFD ${s.rfd.toFixed(0)} bear force expanding`); }
+
+    if (s.rfdCrossUp) { score += 8; reasons.push("RFD crossed above zero (force flip ↑)"); }
+    else if (s.rfdCrossDown) { score -= 8; reasons.push("RFD crossed below zero (force flip ↓)"); }
+
+    if (s.rfdDivergence === "bear") { score -= 12; reasons.push("RFD bearish divergence (price up, force fading)"); }
+    else if (s.rfdDivergence === "bull") { score += 12; reasons.push("RFD bullish divergence (price down, force rebuilding)"); }
+  }
+
   score = Math.max(-100, Math.min(100, score));
   const bias: SignalBias = score >= 20 ? "bull" : score <= -20 ? "bear" : "neutral";
   return { bias, score, reasons };
