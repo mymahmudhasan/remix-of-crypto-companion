@@ -58,6 +58,11 @@ const Index = () => {
           <ReversalRadar onSelect={setSymbol} />
         </div>
 
+        {/* Crash Risk Radar — tokens with high probability of crashing */}
+        <div className="h-[460px]">
+          <CrashRiskRadar onSelect={setSymbol} />
+        </div>
+
         {/* Bottom: suggested trades + top movers */}
         <div className="grid gap-2 lg:grid-cols-2">
           <div className="h-[420px]">
