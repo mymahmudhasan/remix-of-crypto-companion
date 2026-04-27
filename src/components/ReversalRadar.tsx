@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchKlines, fetch24h, formatPrice } from "@/lib/binance";
-import { rsi, ema } from "@/lib/indicators";
+import { rsi, ema, rfd } from "@/lib/indicators";
 import { Radar, TrendingUp, TrendingDown, Loader2, Target, Shield, Zap, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
