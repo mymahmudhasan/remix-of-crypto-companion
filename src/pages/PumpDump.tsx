@@ -94,6 +94,14 @@ export default function PumpDump() {
   const [error, setError] = useState<string | null>(null);
   const [scannedCount, setScannedCount] = useState(0);
   const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (sym: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(sym)) next.delete(sym); else next.add(sym);
+      return next;
+    });
+  };
 
   const refreshMovers = async () => {
     try {
