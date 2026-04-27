@@ -273,8 +273,8 @@ export default function PumpDump() {
                 const sd = s.setup;
                 const sideColor = sd.side === "long" ? "text-bull bg-bull/15 border-bull/30" : "text-bear bg-bear/15 border-bear/30";
                 return (
-                  <>
-                    <tr key={s.symbol} className="cursor-pointer hover:bg-surface-hover" onClick={() => toggleExpand(s.symbol)}>
+                  <Fragment key={s.symbol}>
+                    <tr className="cursor-pointer hover:bg-surface-hover" onClick={() => toggleExpand(s.symbol)}>
                       <td className="border-b border-border/50 px-2 py-2 text-muted-foreground">
                         <ChevronDown className={cn("size-3.5 transition-transform", isOpen ? "rotate-0" : "-rotate-90")} />
                       </td>
