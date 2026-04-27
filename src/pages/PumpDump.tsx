@@ -133,7 +133,17 @@ export default function PumpDump() {
         const thrustPct = ((last.close - prev.close) / prev.close) * 100;
         const changePct1h = ((last.close - k[Math.max(0, k.length - 13)].close) / k[Math.max(0, k.length - 13)].close) * 100;
 
+        // ATR (14) on 5m candles for stop/target sizing
+        const atrWindow = k.slice(-15);
+        let atrSum = 0;
+        for (let j = 1; j < atrWindow.length; j++) {
+          const c = atrWindow[j], p = atrWindow[j - 1];
+          atrSum += Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close));
+        }
+        const atr = atrSum / Math.max(1, atrWindow.length - 1);
+
         if (volRatio >= 1.8 && Math.abs(thrustPct) >= 0.5) {
+          const verdict: "pump" | "dump" | "watch" = thrustPct > 0 ? (volRatio >= 5 ? "pump" : "watch") : "dump";
           found.push({
             symbol: sym,
             base: sym.replace("USDT", ""),
@@ -141,10 +151,11 @@ export default function PumpDump() {
             changePct1h,
             volRatio,
             thrustPct,
-            verdict: thrustPct > 0 ? (volRatio >= 5 ? "pump" : "watch") : "dump",
+            verdict,
+            setup: buildSetup(last.close, atr, thrustPct, volRatio, verdict),
           });
         }
-      } catch (e) {
+      } catch {
         failed++;
       }
       setScanProgress(((i + 1) / subset.length) * 100);
