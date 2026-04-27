@@ -299,7 +299,7 @@ export default function PumpDump() {
                     {isOpen && (
                       <tr key={`${s.symbol}-setup`} className="bg-surface-elevated/40">
                         <td colSpan={8} className="border-b border-border/50 px-4 py-3">
-                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                          <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <span className={cn("inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider", sideColor)}>
@@ -316,18 +316,25 @@ export default function PumpDump() {
                                 <Field label="TP2" value={formatPrice(sd.tp2)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr2.toFixed(2)}R`} />
                                 <Field label="TP3" value={formatPrice(sd.tp3)} valueClass="text-bull" icon={<Target className="size-3 text-bull" />} extra={`${sd.rr3.toFixed(2)}R`} />
                               </div>
-                              <div className="font-mono text-[10px] text-muted-foreground">
-                                ATR(14·5m): {formatPrice(sd.atr)} · Reward potential up to <span className="font-bold text-bull">{sd.rr3.toFixed(1)}× risk</span> if TP3 hits.
+                              <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+                                <span>ATR(14·5m): {formatPrice(sd.atr)} · Reward up to <span className="font-bold text-bull">{sd.rr3.toFixed(1)}× risk</span> if TP3 hits.</span>
+                                <a
+                                  href={`/?symbol=${s.symbol}`}
+                                  className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20"
+                                >
+                                  Open chart →
+                                </a>
                               </div>
                             </div>
-                            <div className="flex items-end justify-end">
-                              <a
-                                href={`/?symbol=${s.symbol}`}
-                                className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20"
-                              >
-                                Open chart →
-                              </a>
-                            </div>
+                            <PositionSizer
+                              symbol={s.symbol}
+                              side={sd.side}
+                              entry={sd.entry}
+                              stop={sd.stop}
+                              tp1={sd.tp1}
+                              tp2={sd.tp2}
+                              tp3={sd.tp3}
+                            />
                           </div>
                         </td>
                       </tr>
