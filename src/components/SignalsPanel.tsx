@@ -1,5 +1,6 @@
-import { snapshot, scoreSignal, type IndicatorSnapshot } from "@/lib/indicators";
-import { formatPrice } from "@/lib/binance";
+import { useEffect, useState } from "react";
+import { snapshotFromCandles, scoreSignal, type IndicatorSnapshot, type Candle } from "@/lib/indicators";
+import { fetchKlines, formatPrice } from "@/lib/binance";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -16,6 +17,26 @@ function Bar({ value, max = 100, color }: { value: number; max?: number; color: 
   );
 }
 
+/** Bipolar bar centered on zero — left half = negative, right half = positive. */
+function BipolarBar({ value, max = 100, posColor, negColor }: { value: number; max?: number; posColor: string; negColor: string }) {
+  const v = Math.max(-max, Math.min(max, value));
+  const pct = (Math.abs(v) / max) * 50;
+  const positive = v >= 0;
+  return (
+    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-surface-elevated">
+      <div className="absolute inset-y-0 left-1/2 w-px bg-border" />
+      <div
+        className="absolute inset-y-0 transition-all"
+        style={{
+          left: positive ? "50%" : `${50 - pct}%`,
+          width: `${pct}%`,
+          background: positive ? posColor : negColor,
+        }}
+      />
+    </div>
+  );
+}
+
 function Stat({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -26,7 +47,22 @@ function Stat({ label, value, valueClass }: { label: string; value: string; valu
 }
 
 export function SignalsPanel({ closes, symbol }: Props) {
-  if (closes.length < 50) {
+  // Fetch full OHLCV so RFD (volume-weighted) can be computed alongside MACD.
+  const [candles, setCandles] = useState<Candle[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCandles([]);
+    fetchKlines(symbol, "1h", 200)
+      .then((ks) => {
+        if (cancelled) return;
+        setCandles(ks.map((k) => ({ open: k.open, high: k.high, low: k.low, close: k.close, volume: k.volume })));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [symbol]);
+
+  if (closes.length < 50 && candles.length < 50) {
     return (
       <div className="panel flex h-full items-center justify-center p-6">
         <span className="font-mono text-xs text-muted-foreground">Loading indicators…</span>
@@ -34,12 +70,27 @@ export function SignalsPanel({ closes, symbol }: Props) {
     );
   }
 
-  const s: IndicatorSnapshot = snapshot(closes);
+  // Prefer the OHLCV-derived snapshot (gives us RFD + ATR + Stoch + volRatio correctly).
+  // Fall back to closes-only when fetch hasn't finished yet.
+  const s: IndicatorSnapshot = candles.length >= 50
+    ? snapshotFromCandles(candles)
+    : snapshotFromCandles(closes.map((c) => ({ open: c, high: c, low: c, close: c, volume: 0 })));
   const sig = scoreSignal(s);
   const biasColor = sig.bias === "bull" ? "text-bull" : sig.bias === "bear" ? "text-bear" : "text-muted-foreground";
   const biasBg = sig.bias === "bull" ? "bg-bull/10 border-bull/30" : sig.bias === "bear" ? "bg-bear/10 border-bear/30" : "bg-muted/20 border-border";
 
   const rsiColor = s.rsi14 === null ? "text-muted-foreground" : s.rsi14 > 70 ? "text-bear" : s.rsi14 < 30 ? "text-bull" : "text-foreground";
+
+  // RFD tier label
+  const rfdTier = (() => {
+    if (s.rfd === null) return null;
+    const v = s.rfd;
+    if (v >= 60) return { label: "Explosive Bull Force", color: "text-bull", emoji: "🚀" };
+    if (v >= 25) return { label: "Bull Force Expanding", color: "text-bull", emoji: "📈" };
+    if (v <= -60) return { label: "Explosive Bear Force", color: "text-bear", emoji: "💥" };
+    if (v <= -25) return { label: "Bear Force Expanding", color: "text-bear", emoji: "📉" };
+    return { label: "Force Neutral", color: "text-muted-foreground", emoji: "⚖" };
+  })();
 
   return (
     <div className="panel flex h-full flex-col">
@@ -92,6 +143,61 @@ export function SignalsPanel({ closes, symbol }: Props) {
             <div>Signal: <span className="text-foreground">{s.macdSignal?.toFixed(3)}</span></div>
             <div>Hist: <span className={(s.macdHist ?? 0) >= 0 ? "text-bull" : "text-bear"}>{s.macdHist?.toFixed(3)}</span></div>
           </div>
+        </div>
+
+        {/* RFD — Rate of Force Development (volume-weighted momentum acceleration) */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">RFD</span>
+              <span className="rounded bg-accent/15 px-1 py-px font-mono text-[8px] font-bold uppercase text-accent">
+                Force
+              </span>
+              {s.rfdDivergence === "bear" && (
+                <span className="rounded bg-bear/15 px-1 py-px font-mono text-[8px] font-bold uppercase text-bear">
+                  Bear Div
+                </span>
+              )}
+              {s.rfdDivergence === "bull" && (
+                <span className="rounded bg-bull/15 px-1 py-px font-mono text-[8px] font-bold uppercase text-bull">
+                  Bull Div
+                </span>
+              )}
+              {s.rfdCrossUp && (
+                <span className="rounded bg-bull/15 px-1 py-px font-mono text-[8px] font-bold uppercase text-bull">
+                  Cross ↑
+                </span>
+              )}
+              {s.rfdCrossDown && (
+                <span className="rounded bg-bear/15 px-1 py-px font-mono text-[8px] font-bold uppercase text-bear">
+                  Cross ↓
+                </span>
+              )}
+            </div>
+            <span className={cn("font-mono text-sm font-semibold", (s.rfd ?? 0) >= 0 ? "text-bull" : "text-bear")}>
+              {s.rfd !== null ? `${s.rfd >= 0 ? "+" : ""}${s.rfd.toFixed(0)}` : "—"}
+            </span>
+          </div>
+          <BipolarBar
+            value={s.rfd ?? 0}
+            max={100}
+            posColor="hsl(var(--bull))"
+            negColor="hsl(var(--bear))"
+          />
+          <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-muted-foreground">
+            <span>-100 sell force</span>
+            {rfdTier && (
+              <span className={cn("font-bold uppercase", rfdTier.color)}>
+                {rfdTier.emoji} {rfdTier.label}
+              </span>
+            )}
+            <span>+100 buy force</span>
+          </div>
+          {s.rfdDelta !== null && (
+            <div className="mt-1 font-mono text-[9px] text-muted-foreground">
+              Δ {s.rfdDelta > 0 ? "+" : ""}{s.rfdDelta.toFixed(1)} vs prior bar — {s.rfdDelta > 0 ? "force accelerating" : s.rfdDelta < 0 ? "force decelerating" : "flat"}
+            </div>
+          )}
         </div>
 
         {/* EMAs */}
