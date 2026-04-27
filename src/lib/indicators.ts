@@ -332,6 +332,12 @@ export function snapshotFromCandles(candles: Candle[]): IndicatorSnapshot {
     recentHigh: Math.max(...window),
     recentLow: Math.min(...window),
     changePct: ((last - closes[Math.max(0, n - 50)]) / closes[Math.max(0, n - 50)]) * 100,
+    rfd: r_fd.value,
+    rfdPrev: r_fd.prev,
+    rfdDelta: r_fd.delta,
+    rfdCrossUp: r_fd.crossUp,
+    rfdCrossDown: r_fd.crossDown,
+    rfdDivergence: r_fd.divergence,
   };
 }
 
