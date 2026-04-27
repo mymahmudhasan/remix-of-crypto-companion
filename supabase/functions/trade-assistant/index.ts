@@ -73,6 +73,48 @@ function rsi(values: number[], period = 14): number | null {
   return 100 - 100 / (1 + rs);
 }
 
+/**
+ * RFD — Rate of Force Development. Acceleration of volume-weighted momentum.
+ * Returns a -100..+100 oscillator and divergence flag. See src/lib/indicators.ts
+ * for the full spec; this is a server-side mirror.
+ */
+function rfd(closes: number[], volumes: number[], fast = 5, slow = 13) {
+  const n = closes.length;
+  if (n < slow + 6 || volumes.length !== n) return { value: null, prev: null, delta: null, crossUp: false, crossDown: false, divergence: null as null | "bull" | "bear" };
+  const force: number[] = new Array(n).fill(0);
+  for (let i = 1; i < n; i++) force[i] = (closes[i] - closes[i - 1]) * volumes[i];
+  const series: (number | null)[] = new Array(n).fill(null);
+  for (let i = slow; i < n; i++) {
+    const fastWin = force.slice(i - fast + 1, i + 1);
+    const slowWin = force.slice(i - slow + 1, i + 1);
+    const meanFast = fastWin.reduce((s, v) => s + v, 0) / fast;
+    const meanSlow = slowWin.reduce((s, v) => s + v, 0) / slow;
+    const absMean = slowWin.reduce((s, v) => s + Math.abs(v), 0) / slow;
+    const variance = slowWin.reduce((s, v) => s + (Math.abs(v) - absMean) ** 2, 0) / slow;
+    const sigma = Math.sqrt(variance);
+    const denom = sigma + absMean * 0.5;
+    const raw = denom > 0 ? (meanFast - meanSlow) / denom : 0;
+    series[i] = Math.max(-100, Math.min(100, raw * 35));
+  }
+  const value = series[n - 1];
+  const prev = series[n - 2] ?? null;
+  const delta = value !== null && prev !== null ? value - prev : null;
+  const crossUp = value !== null && prev !== null && prev <= 0 && value > 0;
+  const crossDown = value !== null && prev !== null && prev >= 0 && value < 0;
+  let divergence: null | "bull" | "bear" = null;
+  if (value !== null && n >= 25) {
+    const priceWin = closes.slice(-20);
+    const rfdWin = series.slice(-20).map((v) => v ?? 0);
+    const priceMaxIdx = priceWin.indexOf(Math.max(...priceWin));
+    const priceMinIdx = priceWin.indexOf(Math.min(...priceWin));
+    const rfdMax = Math.max(...rfdWin);
+    const rfdMin = Math.min(...rfdWin);
+    if (priceMaxIdx >= 15 && value < rfdMax - 25 && value < 30) divergence = "bear";
+    else if (priceMinIdx >= 15 && value > rfdMin + 25 && value > -30) divergence = "bull";
+  }
+  return { value, prev, delta, crossUp, crossDown, divergence };
+}
+
 async function tool_get_indicators(args: { symbol: string; interval?: string }) {
   const sym = pairOf(args.symbol);
   const tf = args.interval ?? "1h";
@@ -80,6 +122,7 @@ async function tool_get_indicators(args: { symbol: string; interval?: string }) 
   if (!r.ok) return { error: `No klines for ${sym} ${tf}` };
   const k: any[][] = await r.json();
   const closes = k.map((c) => parseFloat(c[4]));
+  const volumes = k.map((c) => parseFloat(c[5]));
   const price = closes[closes.length - 1];
   const e20 = ema(closes, 20).at(-1) ?? null;
   const e50 = ema(closes, 50).at(-1) ?? null;
@@ -94,12 +137,15 @@ async function tool_get_indicators(args: { symbol: string; interval?: string }) 
   const r14 = rsi(closes, 14);
   const recentHigh = Math.max(...closes.slice(-50));
   const recentLow = Math.min(...closes.slice(-50));
-  // Bias verdict
+  const rfdData = rfd(closes, volumes, 5, 13);
+  // Bias verdict — RFD now contributes alongside MACD
   const above200 = e200 !== null && price > e200;
   const above50 = e50 !== null && price > e50;
+  const rfdBull = (rfdData.value ?? 0) > 25 || rfdData.crossUp;
+  const rfdBear = (rfdData.value ?? 0) < -25 || rfdData.crossDown;
   let verdict = "neutral";
-  if (above200 && above50 && (r14 ?? 50) > 50 && (macdHist ?? 0) > 0) verdict = "bullish";
-  else if (!above200 && !above50 && (r14 ?? 50) < 50 && (macdHist ?? 0) < 0) verdict = "bearish";
+  if (above200 && above50 && (r14 ?? 50) > 50 && (macdHist ?? 0) > 0 && !rfdBear) verdict = "bullish";
+  else if (!above200 && !above50 && (r14 ?? 50) < 50 && (macdHist ?? 0) < 0 && !rfdBull) verdict = "bearish";
   let zone = "neutral";
   if ((r14 ?? 50) > 70) zone = "overbought";
   else if ((r14 ?? 50) < 30) zone = "oversold";
@@ -108,6 +154,11 @@ async function tool_get_indicators(args: { symbol: string; interval?: string }) 
     rsi14: r14 !== null ? +r14.toFixed(2) : null,
     ema20: e20, ema50: e50, ema200: e200,
     macd, macdSignal: macdSig, macdHist,
+    rfd: rfdData.value !== null ? +rfdData.value.toFixed(1) : null,
+    rfdDelta: rfdData.delta !== null ? +rfdData.delta.toFixed(1) : null,
+    rfdCrossUp: rfdData.crossUp,
+    rfdCrossDown: rfdData.crossDown,
+    rfdDivergence: rfdData.divergence,
     recentHigh, recentLow,
     verdict, zone,
   };
@@ -679,7 +730,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "get_indicators",
-      description: "Compute live technical indicators (RSI-14, EMA 20/50/200, MACD, recent range) for a symbol on a chosen timeframe. Use for 'is X overbought?', 'what's the trend?', 'is MACD bullish?'.",
+      description: "Compute live technical indicators (RSI-14, EMA 20/50/200, MACD, RFD, recent range) for a symbol on a chosen timeframe. RFD = Rate of Force Development (-100..+100): acceleration of volume-weighted momentum — the *derivative* of force, leading-edge vs MACD. Use for 'is X overbought?', 'is the rally losing force?', 'is bear pressure accelerating?', divergence checks.",
       parameters: {
         type: "object",
         properties: {
@@ -868,7 +919,7 @@ Never guarantee outcomes. Educational analysis only — not financial advice.
 
 TOOLS — call them whenever you need fresh data:
 - get_price for current price / 24h change.
-- get_indicators for RSI / EMA / MACD verdict (overbought, trend).
+- get_indicators for RSI / EMA / MACD / RFD verdict. RFD (Rate of Force Development, -100..+100) is the *acceleration* of volume-weighted momentum — leading-edge vs MACD: |RFD|>60 = explosive force, cross-zero = force-regime flip, divergence vs price = exhaustion. ALWAYS report RFD alongside MACD when discussing momentum/trend strength.
 - get_gas for ETH/L2 gas in gwei.
 - get_news_sentiment for headlines + bull/bear bias.
 - get_orderbook_heatmap for liquidity walls, bid/ask imbalance, and key support/resistance from resting orders.
