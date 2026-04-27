@@ -84,12 +84,14 @@ interface CrashRisk {
   tier: "extreme" | "high" | "elevated";
   rsi: number;
   atrPct: number;
+  atrAbs: number;
   distFromHighPct: number; // distance below 50-bar high (negative if recent ATH break)
   volRatio: number; // last bar vs 20-bar avg
   bearishVolRatio: number; // last 5 bears vs 5 bulls volume
   consecBears: number;
   reasons: string[];
   quoteVol: number;
+  setup: CrashTradeSetup;
 }
 
 const STABLE_EXCLUDE = new Set([
