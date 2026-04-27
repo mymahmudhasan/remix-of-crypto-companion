@@ -263,6 +263,15 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
         if (rsiRising) reasons.push("RSI turning up");
         if (distancePct > 2) reasons.push(`-${distancePct.toFixed(1)}% flush`);
 
+        // RFD bias for bottom reversals: bull divergence or fading negative force
+        const rfdBotBonus =
+          rfdData.divergence === "bull" ? 14 :
+          (rfdData.value !== null && rfdData.value > 0 && rfdData.crossUp) ? 10 :
+          (rfdData.value !== null && rfdData.value > -25 && (rfdData.delta ?? 0) > 5) ? 6 : 0;
+        if (rfdBotBonus >= 14) reasons.push("RFD bull divergence");
+        else if (rfdBotBonus >= 10) reasons.push("RFD flipped positive");
+        else if (rfdBotBonus >= 6) reasons.push("RFD force rebuilding");
+
         const stop = recentLow - atr * 0.5;
         const entryLow = price - atr * 0.3;
         const entryHigh = price + atr * 0.1;
@@ -279,7 +288,8 @@ async function buildReversalSetup(symbol: string, timeframe: Timeframe, profile:
             (lowerWickStrong ? 15 : 0) +
             (volRatio > 1.8 ? 12 : volRatio > 1.2 ? 6 : 0) +
             (rsiRising ? 8 : 0) +
-            Math.min(15, distancePct * 4)
+            Math.min(15, distancePct * 4) +
+            rfdBotBonus
         );
 
         const candidate: ReversalSetup = {
