@@ -9,6 +9,7 @@ import { TopMovers } from "@/components/TopMovers";
 import { QuickActions } from "@/components/QuickActions";
 import { SuggestedTrades } from "@/components/SuggestedTrades";
 import { ReversalRadar } from "@/components/ReversalRadar";
+import { CrashRiskRadar } from "@/components/CrashRiskRadar";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
