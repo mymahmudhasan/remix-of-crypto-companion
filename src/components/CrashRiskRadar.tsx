@@ -1,8 +1,76 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { fetchKlines, fetch24h, formatPrice, formatCompact } from "@/lib/binance";
 import { rsi, ema, rfd } from "@/lib/indicators";
-import { AlertTriangle, Loader2, RefreshCw, Skull, TrendingDown, Flame } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Skull, TrendingDown, TrendingUp, ChevronDown, Target, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface CrashTradeSetup {
+  side: "short" | "long";
+  entry: number;
+  entryLow: number;
+  entryHigh: number;
+  stop: number;
+  tp1: number;
+  tp2: number;
+  tp3: number;
+  riskPct: number;
+  rr1: number;
+  rr2: number;
+  rr3: number;
+  atr: number;
+  rationale: string;
+}
+
+function buildCrashSetup(
+  price: number,
+  atrAbs: number,
+  tier: "extreme" | "high" | "elevated",
+  distFromHighPct: number,
+  rsiVal: number,
+): CrashTradeSetup {
+  const a = atrAbs > 0 ? atrAbs : price * 0.01;
+  // Already broken down hard + oversold → capitulation long (mean-reversion bounce)
+  const capitulation = distFromHighPct < -18 && rsiVal < 35;
+  const side: "short" | "long" = capitulation ? "long" : "short";
+
+  let entry: number, stop: number, tp1: number, tp2: number, tp3: number, rationale: string;
+
+  if (side === "short") {
+    // Fade strength — entry slightly above current on a retest, stop above swing/ATR buffer.
+    // Tier scales aggression: extreme → tighter stop, larger targets.
+    const stopMult = tier === "extreme" ? 1.4 : tier === "high" ? 1.7 : 2.0;
+    const tp1Mult = tier === "extreme" ? 1.5 : 1.2;
+    const tp2Mult = tier === "extreme" ? 3.0 : 2.4;
+    const tp3Mult = tier === "extreme" ? 5.0 : 4.0;
+    entry = price + a * 0.2;
+    stop = price + a * stopMult;
+    tp1 = entry - a * tp1Mult;
+    tp2 = entry - a * tp2Mult;
+    tp3 = entry - a * tp3Mult;
+    rationale =
+      tier === "extreme"
+        ? "Distribution fade — ride the crash; trail stop aggressively below LH"
+        : "Short into bounce/retest — bearish structure + sell volume dominance";
+  } else {
+    // Capitulation bounce long — entry above current confirmation, tight stop below low.
+    entry = price + a * 0.15;
+    stop = price - a * 1.2;
+    tp1 = entry + a * 1.2;
+    tp2 = entry + a * 2.4;
+    tp3 = entry + a * 3.8;
+    rationale = "Capitulation bounce — already off highs + oversold RSI = mean-reversion long";
+  }
+
+  const entryLow = side === "short" ? entry : Math.min(entry, entry - a * 0.15);
+  const entryHigh = side === "short" ? entry + a * 0.2 : entry;
+  const risk = Math.abs(entry - stop);
+  const riskPct = (risk / entry) * 100;
+  const rr1 = Math.abs(tp1 - entry) / risk;
+  const rr2 = Math.abs(tp2 - entry) / risk;
+  const rr3 = Math.abs(tp3 - entry) / risk;
+
+  return { side, entry, entryLow, entryHigh, stop, tp1, tp2, tp3, riskPct, rr1, rr2, rr3, atr: a, rationale };
+}
 
 type Timeframe = "15m" | "1h" | "4h";
 const TIMEFRAMES: Timeframe[] = ["15m", "1h", "4h"];
