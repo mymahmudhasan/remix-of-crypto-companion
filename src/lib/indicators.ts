@@ -272,6 +272,13 @@ export interface IndicatorSnapshot {
   recentHigh: number;
   recentLow: number;
   changePct: number;
+  /** Rate of Force Development — acceleration of volume-weighted momentum. -100…+100. */
+  rfd: number | null;
+  rfdPrev: number | null;
+  rfdDelta: number | null;
+  rfdCrossUp: boolean;
+  rfdCrossDown: boolean;
+  rfdDivergence: "bull" | "bear" | null;
 }
 
 export interface Candle {
@@ -303,6 +310,7 @@ export function snapshotFromCandles(candles: Candle[]): IndicatorSnapshot {
   const pctB = upper !== null && lower !== null && upper > lower
     ? (last - lower) / (upper - lower)
     : null;
+  const r_fd = rfd(closes, vols, 5, 13);
   return {
     price: last,
     rsi14: r,
