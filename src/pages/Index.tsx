@@ -37,6 +37,7 @@ const Index = () => {
 
         {/* Section: Chart */}
         <Section title="Chart" subtitle={`${symbol} · ${interval}`}>
+          <SymbolSearch value={symbol} onSelect={setSymbol} />
           <div className="panel flex min-h-[520px] flex-col">
             <SymbolHeader symbol={symbol} interval={interval} onIntervalChange={setInterval} />
             <div className="min-h-[460px] flex-1">
