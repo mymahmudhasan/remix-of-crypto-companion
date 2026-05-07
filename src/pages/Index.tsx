@@ -12,6 +12,7 @@ import { ReversalRadar } from "@/components/ReversalRadar";
 import { CrashRiskRadar } from "@/components/CrashRiskRadar";
 import { RfdPanel } from "@/components/RfdPanel";
 import { NewsSignalsCard } from "@/components/NewsSignalsCard";
+import { SymbolSearch } from "@/components/SymbolSearch";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
