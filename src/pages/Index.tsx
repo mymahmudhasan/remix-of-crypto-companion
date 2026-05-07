@@ -12,6 +12,7 @@ import { ReversalRadar } from "@/components/ReversalRadar";
 import { CrashRiskRadar } from "@/components/CrashRiskRadar";
 import { RfdPanel } from "@/components/RfdPanel";
 import { NewsSignalsCard } from "@/components/NewsSignalsCard";
+import { SymbolSearch } from "@/components/SymbolSearch";
 
 const WATCHLIST = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT",
@@ -36,6 +37,7 @@ const Index = () => {
 
         {/* Section: Chart */}
         <Section title="Chart" subtitle={`${symbol} · ${interval}`}>
+          <SymbolSearch value={symbol} onSelect={setSymbol} />
           <div className="panel flex min-h-[520px] flex-col">
             <SymbolHeader symbol={symbol} interval={interval} onIntervalChange={setInterval} />
             <div className="min-h-[460px] flex-1">
