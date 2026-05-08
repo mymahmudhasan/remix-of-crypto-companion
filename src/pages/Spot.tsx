@@ -239,16 +239,18 @@ export default function Spot() {
         snap={snap}
         positionUsd={positionUsd}
         planSide={planSide}
+        onSelectSymbol={setSymbol}
       />
     </div>
   );
 }
 
 function RightColumn({
-  symbol, interval, plan, loading, snap, positionUsd, planSide,
+  symbol, interval, plan, loading, snap, positionUsd, planSide, onSelectSymbol,
 }: {
   symbol: string; interval: string; plan: SpotPlan | null; loading: boolean;
   snap: IndicatorSnapshot | null; positionUsd: number; planSide: "long" | "short" | "neutral";
+  onSelectSymbol: (s: string) => void;
 }) {
   const chartWrapRef = useRef<HTMLDivElement>(null);
   return (
