@@ -263,6 +263,7 @@ function RightColumn({
           <LiquidityHeatmap symbol={symbol} market="spot" />
         </div>
       </div>
+      <LowRiskPicks mode="spot" onSelect={onSelectSymbol} />
       <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         {!plan && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
