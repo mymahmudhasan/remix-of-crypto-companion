@@ -11,6 +11,7 @@ import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
 import { LowRiskPicks } from "@/components/LowRiskPicks";
+import { ExtremeAlerts } from "@/components/ExtremeAlerts";
 
 interface SpotPlan extends PlanCommon {
   action: "buy" | "hold" | "sell" | "wait";
@@ -264,6 +265,7 @@ function RightColumn({
         </div>
       </div>
       <LowRiskPicks mode="spot" onSelect={onSelectSymbol} />
+      <ExtremeAlerts mode="spot" onSelect={onSelectSymbol} />
       <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         {!plan && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
