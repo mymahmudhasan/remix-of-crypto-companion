@@ -10,6 +10,7 @@ import { LiquidityHeatmap } from "@/components/LiquidityHeatmap";
 import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { LowRiskPicks } from "@/components/LowRiskPicks";
 
 interface SpotPlan extends PlanCommon {
   action: "buy" | "hold" | "sell" | "wait";
@@ -238,16 +239,18 @@ export default function Spot() {
         snap={snap}
         positionUsd={positionUsd}
         planSide={planSide}
+        onSelectSymbol={setSymbol}
       />
     </div>
   );
 }
 
 function RightColumn({
-  symbol, interval, plan, loading, snap, positionUsd, planSide,
+  symbol, interval, plan, loading, snap, positionUsd, planSide, onSelectSymbol,
 }: {
   symbol: string; interval: string; plan: SpotPlan | null; loading: boolean;
   snap: IndicatorSnapshot | null; positionUsd: number; planSide: "long" | "short" | "neutral";
+  onSelectSymbol: (s: string) => void;
 }) {
   const chartWrapRef = useRef<HTMLDivElement>(null);
   return (
@@ -260,6 +263,7 @@ function RightColumn({
           <LiquidityHeatmap symbol={symbol} market="spot" />
         </div>
       </div>
+      <LowRiskPicks mode="spot" onSelect={onSelectSymbol} />
       <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         {!plan && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
