@@ -254,6 +254,7 @@ export default function Futures() {
             <LiquidityHeatmap symbol={symbol} market="futures" />
           </div>
         </div>
+        <LowRiskPicks mode="futures" onSelect={setSymbol} />
         <div className="panel min-h-0 flex-1 overflow-y-auto scrollbar-thin">
           {!plan && !loading && (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
