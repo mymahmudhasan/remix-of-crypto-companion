@@ -10,6 +10,7 @@ import { LiquidityHeatmap } from "@/components/LiquidityHeatmap";
 import { SavePlanButton } from "@/components/SavePlanButton";
 import { cn } from "@/lib/utils";
 import { WinChanceBadge } from "@/components/WinChanceBadge";
+import { LowRiskPicks } from "@/components/LowRiskPicks";
 
 interface FuturesPlan extends PlanCommon {
   side: "long" | "short" | "neutral";
