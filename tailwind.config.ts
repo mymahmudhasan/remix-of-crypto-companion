@@ -8,9 +8,11 @@ export default {
     container: { center: true, padding: "1rem", screens: { "2xl": "1536px" } },
     extend: {
       fontFamily: {
-        sans: ["'Space Grotesk'", "system-ui", "sans-serif"],
+        sans: ["'Manrope'", "system-ui", "sans-serif"],
+        display: ["'Sora'", "system-ui", "sans-serif"],
         mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
+
       colors: {
         border: "hsl(var(--border))",
         "border-strong": "hsl(var(--border-strong))",
