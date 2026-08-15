@@ -78,12 +78,12 @@ export function CandleChart({
     chartRef.current = chart;
 
     candleRef.current = chart.addCandlestickSeries({
-      upColor: "#00ff95",
-      downColor: "#ff3366",
-      borderUpColor: "#00ff95",
-      borderDownColor: "#ff3366",
-      wickUpColor: "#00ff95",
-      wickDownColor: "#ff3366",
+      upColor: "#10b981",
+      downColor: "#f43f5e",
+      borderUpColor: "#10b981",
+      borderDownColor: "#f43f5e",
+      wickUpColor: "#10b981",
+      wickDownColor: "#f43f5e",
     });
 
     volumeRef.current = chart.addHistogramSeries({
@@ -93,9 +93,9 @@ export function CandleChart({
     });
     chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
 
-    ema20Ref.current = chart.addLineSeries({ color: "#00d9ff", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-    ema50Ref.current = chart.addLineSeries({ color: "#ffb800", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-    ema200Ref.current = chart.addLineSeries({ color: "#c084fc", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    ema20Ref.current = chart.addLineSeries({ color: "#38bdf8", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    ema50Ref.current = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    ema200Ref.current = chart.addLineSeries({ color: "#a78bfa", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 
     bandUpperRef.current = chart.addLineSeries({ lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
     bandMidRef.current = chart.addLineSeries({ lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
@@ -159,7 +159,7 @@ export function CandleChart({
       const vd: HistogramData[] = klines.map((k) => ({
         time: k.time as any,
         value: k.volume,
-        color: k.close >= k.open ? "rgba(0,255,149,0.35)" : "rgba(255,51,102,0.35)",
+        color: k.close >= k.open ? "rgba(16,185,129,0.32)" : "rgba(244,63,94,0.32)",
       }));
       candle.setData(cd);
       vol.setData(vd);
@@ -188,7 +188,7 @@ export function CandleChart({
 
       unsub = subscribeKline(symbol, interval, (k: Kline) => {
         candle.update({ time: k.time as any, open: k.open, high: k.high, low: k.low, close: k.close });
-        vol.update({ time: k.time as any, value: k.volume, color: k.close >= k.open ? "rgba(0,255,149,0.35)" : "rgba(255,51,102,0.35)" });
+        vol.update({ time: k.time as any, value: k.volume, color: k.close >= k.open ? "rgba(16,185,129,0.32)" : "rgba(244,63,94,0.32)" });
         // patch the live bar
         const arr = klinesRef.current;
         if (arr.length > 0) {
