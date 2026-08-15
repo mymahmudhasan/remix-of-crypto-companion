@@ -244,9 +244,10 @@ export function CandleChart({
 
       {/* Legend (top-left, below toggle area on small screens via flex-wrap) */}
       <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px]">
-        <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#00d9ff]" /> EMA20</span>
-        <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#ffb800]" /> EMA50</span>
-        <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-[#c084fc]" /> EMA200</span>
+        <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: "hsl(var(--chart-ema20))" }} /> EMA20</span>
+        <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: "hsl(var(--chart-ema50))" }} /> EMA50</span>
+        <span className="flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: "hsl(var(--chart-ema200))" }} /> EMA200</span>
+
         {bands !== "off" && (
           <span className="flex items-center gap-1">
             <span className="size-2 rounded-full" style={{ background: bandColor }} />
