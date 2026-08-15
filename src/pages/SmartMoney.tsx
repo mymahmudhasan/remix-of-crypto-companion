@@ -335,7 +335,7 @@ export default function SmartMoney() {
       <div className="flex min-h-0 flex-col gap-2 overflow-hidden">
         {/* Header */}
         <div className="panel flex shrink-0 flex-wrap items-center gap-2 p-2">
-          <h2 className="font-mono text-base font-bold neon-text">
+          <h2 className="font-display text-sm font-semibold">
             {selected.replace("USDT", "/USDT")}
           </h2>
           <span className={cn(
@@ -414,7 +414,7 @@ export default function SmartMoney() {
               {!coach && !coachLoading && (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                   <Sparkles className="size-9 text-muted-foreground/40" />
-                  <h3 className="font-mono text-base font-bold neon-text">Winning Trade Coach</h3>
+                  <h3 className="font-display text-sm font-semibold">Winning Trade Coach</h3>
                   <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
                     Combine the live indicators, multi-timeframe bias, and the institutional footprints detected on {selected.replace("USDT", "")} to build a strict checklist + step-by-step playbook.
                   </p>
@@ -569,7 +569,7 @@ function CoachView({
       <div className={cn("flex flex-wrap items-end justify-between gap-3 rounded-lg border-2 p-4", v.cls)}>
         <div>
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{symbol.replace("USDT", "/USDT")} · Coach Verdict</span>
-          <h2 className="flex items-center gap-2 font-mono text-3xl font-black uppercase neon-text">
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold uppercase tracking-tight neon-text">
             {v.label}
             <sm.Icon className={cn("size-6", sm.cls)} />
             <span className={cn("text-2xl", sm.cls)}>{coach.side.toUpperCase()}</span>

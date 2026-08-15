@@ -262,7 +262,7 @@ export default function Plans() {
         {!loading && !error && filtered.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <Bookmark className="size-10 text-muted-foreground/40" />
-            <h2 className="font-mono text-lg font-bold neon-text">No plans yet</h2>
+            <h2 className="font-display text-[15px] font-semibold">No plans yet</h2>
             <p className="max-w-md font-mono text-xs text-muted-foreground">
               Generate a plan on Spot or Futures and click <span className="text-primary">Save Plan</span> to start tracking your trade journal and win-rate.
             </p>

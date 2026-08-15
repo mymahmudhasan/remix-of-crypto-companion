@@ -8,9 +8,11 @@ export default {
     container: { center: true, padding: "1rem", screens: { "2xl": "1536px" } },
     extend: {
       fontFamily: {
-        sans: ["'Space Grotesk'", "system-ui", "sans-serif"],
+        sans: ["'Manrope'", "system-ui", "sans-serif"],
+        display: ["'Sora'", "system-ui", "sans-serif"],
         mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
+
       colors: {
         border: "hsl(var(--border))",
         "border-strong": "hsl(var(--border-strong))",
@@ -27,7 +29,9 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
           glow: "hsl(var(--primary-glow))",
+          muted: "hsl(var(--primary-muted))",
         },
+
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -44,8 +48,11 @@ export default {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-        bull: "hsl(var(--bull))",
-        bear: "hsl(var(--bear))",
+        bull: { DEFAULT: "hsl(var(--bull))", soft: "hsl(var(--bull-soft))" },
+        bear: { DEFAULT: "hsl(var(--bear))", soft: "hsl(var(--bear-soft))" },
+        neutral: "hsl(var(--neutral))",
+        scrim: "hsl(var(--scrim))",
+
         sidebar: {
           DEFAULT: "hsl(var(--surface))",
           foreground: "hsl(var(--foreground))",

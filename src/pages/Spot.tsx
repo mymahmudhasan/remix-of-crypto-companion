@@ -270,7 +270,7 @@ function RightColumn({
         {!plan && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <ShoppingCart className="size-10 text-muted-foreground/40" />
-            <h2 className="font-mono text-lg font-bold neon-text">Spot Trading Master</h2>
+            <h2 className="font-display text-[15px] font-semibold">Spot Trading Master</h2>
             <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
               Pick a symbol and timeframe, then generate an in-depth spot plan with indicator breakdown, multi-timeframe confluence, bull/bear scenarios, and risk:reward per target.
             </p>
@@ -328,7 +328,7 @@ function PlanView({ plan, symbol, interval, positionUsd, currentPrice, side, get
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{symbol.replace("USDT", "/USDT")} · Spot Plan</span>
-            <h2 className="font-mono text-3xl font-black uppercase neon-text">{meta.label}</h2>
+            <h2 className="font-display text-xl font-bold uppercase tracking-tight neon-text">{meta.label}</h2>
           </div>
           <div className="text-right">
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Conviction</span>

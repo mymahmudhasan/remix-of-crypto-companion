@@ -55,12 +55,12 @@ export function MiniSetupChart({ symbol, interval = "1h", entryLow, entryHigh, s
     chartRef.current = chart;
 
     const series = chart.addCandlestickSeries({
-      upColor: "#22c55e",
-      downColor: "#ef4444",
-      borderUpColor: "#22c55e",
-      borderDownColor: "#ef4444",
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
+      upColor: "#10b981",
+      downColor: "#f43f5e",
+      borderUpColor: "#10b981",
+      borderDownColor: "#f43f5e",
+      wickUpColor: "#10b981",
+      wickDownColor: "#f43f5e",
     });
 
     let cancelled = false;
@@ -73,15 +73,15 @@ export function MiniSetupChart({ symbol, interval = "1h", entryLow, entryHigh, s
         series.setData(data);
         series.createPriceLine({
           price: (entryLow + entryHigh) / 2,
-          color: "#3b82f6", lineWidth: 1, lineStyle: 2,
+          color: "#4f46e5", lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: "Entry",
         });
         series.createPriceLine({
-          price: stop, color: "#ef4444", lineWidth: 1, lineStyle: 2,
+          price: stop, color: "#f43f5e", lineWidth: 1, lineStyle: 2,
           axisLabelVisible: true, title: "SL",
         });
         targets.forEach((t, i) => series.createPriceLine({
-          price: t, color: "#22c55e", lineWidth: 1, lineStyle: 3,
+          price: t, color: "#10b981", lineWidth: 1, lineStyle: 3,
           axisLabelVisible: true, title: `T${i + 1}`,
         }));
         chart.timeScale().fitContent();
