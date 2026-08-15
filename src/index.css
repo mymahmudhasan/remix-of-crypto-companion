@@ -1,65 +1,76 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* CryptoDesk — Pro trader terminal design system. All colors HSL. */
+/* CryptoDesk — Midnight Indigo institutional trading desk. All colors HSL. */
 
 @layer base {
   :root {
-    /* Terminal palette (dark by default) */
-    --background: 222 47% 5%;
-    --foreground: 180 10% 92%;
+    /* Base — #0a0a1a */
+    --background: 240 43% 6%;
+    --foreground: 226 30% 94%;
 
-    --surface: 222 40% 8%;
-    --surface-elevated: 222 35% 11%;
-    --surface-hover: 222 35% 14%;
+    /* Surfaces — #141432 / #1e1e5a */
+    --surface: 240 40% 13%;
+    --surface-elevated: 240 42% 17%;
+    --surface-hover: 240 40% 22%;
 
-    --card: 222 40% 8%;
-    --card-foreground: 180 10% 92%;
+    --card: 240 40% 11%;
+    --card-foreground: 226 30% 94%;
 
-    --popover: 222 40% 9%;
-    --popover-foreground: 180 10% 92%;
+    --popover: 240 40% 12%;
+    --popover-foreground: 226 30% 94%;
 
-    --primary: 158 100% 52%;        /* neon green */
-    --primary-foreground: 222 47% 5%;
-    --primary-glow: 158 100% 60%;
+    /* Accent — #4f46e5 */
+    --primary: 245 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 245 80% 70%;
+    --primary-muted: 245 60% 24%;
 
-    --secondary: 222 35% 14%;
-    --secondary-foreground: 180 10% 92%;
+    --secondary: 240 38% 18%;
+    --secondary-foreground: 226 30% 94%;
 
-    --muted: 222 30% 13%;
-    --muted-foreground: 215 15% 60%;
+    --muted: 240 32% 15%;
+    --muted-foreground: 232 16% 63%;
 
-    --accent: 195 100% 55%;          /* neon cyan */
-    --accent-foreground: 222 47% 5%;
+    --accent: 200 90% 58%;
+    --accent-foreground: 240 43% 6%;
 
-    --destructive: 350 100% 60%;     /* neon red/pink */
+    --destructive: 350 89% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 45 100% 58%;          /* neon amber */
-    --warning-foreground: 222 47% 5%;
+    --warning: 38 92% 58%;
+    --warning-foreground: 240 43% 6%;
 
-    --bull: 158 100% 52%;
-    --bear: 350 100% 60%;
-    --neutral: 215 15% 60%;
+    /* Data colors — emerald / rose */
+    --bull: 160 84% 39%;
+    --bull-soft: 160 60% 22%;
+    --bear: 350 89% 60%;
+    --bear-soft: 350 55% 26%;
+    --neutral: 232 16% 63%;
 
-    --border: 222 30% 16%;
-    --border-strong: 222 30% 22%;
-    --input: 222 35% 14%;
-    --ring: 158 100% 52%;
+    --border: 240 34% 20%;
+    --border-strong: 240 36% 28%;
+    --input: 240 38% 18%;
+    --ring: 245 75% 59%;
 
-    --radius: 0.5rem;
+    --radius: 0.375rem;
 
-    --gradient-bull: linear-gradient(135deg, hsl(158 100% 52%), hsl(180 100% 50%));
-    --gradient-bear: linear-gradient(135deg, hsl(350 100% 60%), hsl(320 100% 55%));
-    --gradient-surface: linear-gradient(180deg, hsl(222 40% 9%), hsl(222 45% 6%));
-    --gradient-grid: radial-gradient(circle at 1px 1px, hsl(222 30% 18%) 1px, transparent 0);
+    --scrim: 240 50% 3%;
 
-    --shadow-glow-bull: 0 0 24px hsl(158 100% 52% / 0.35);
-    --shadow-glow-bear: 0 0 24px hsl(350 100% 60% / 0.35);
-    --shadow-panel: 0 8px 32px -8px hsl(222 80% 2% / 0.6), inset 0 1px 0 0 hsl(222 30% 18% / 0.6);
+    --chart-ema20: 200 90% 58%;
+    --chart-ema50: 38 92% 58%;
+    --chart-ema200: 265 85% 72%;
+
+    --gradient-bull: linear-gradient(135deg, hsl(160 84% 39%), hsl(174 72% 42%));
+    --gradient-bear: linear-gradient(135deg, hsl(350 89% 60%), hsl(330 80% 55%));
+    --gradient-surface: linear-gradient(180deg, hsl(240 40% 12%), hsl(240 43% 8%));
+    --gradient-grid: radial-gradient(circle at 1px 1px, hsl(240 34% 22%) 1px, transparent 0);
+
+    --shadow-panel: 0 1px 0 0 hsl(240 50% 60% / 0.06) inset, 0 1px 2px 0 hsl(240 60% 2% / 0.5);
+    --shadow-raised: 0 8px 24px -12px hsl(240 60% 2% / 0.7);
 
     --transition-snap: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -74,20 +85,26 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(158 100% 52% / 0.06), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(195 100% 55% / 0.05), transparent);
-    background-attachment: fixed;
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', system-ui, sans-serif;
+    letter-spacing: -0.01em;
   }
   .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Numbers always align */
+  table, .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @layer components {
   .panel {
-    @apply rounded-lg border border-border bg-card;
+    @apply rounded-md border border-border bg-card;
     box-shadow: var(--shadow-panel);
   }
   .panel-hover {
@@ -101,52 +118,55 @@
   .text-bear { color: hsl(var(--bear)); }
   .bg-bull { background-color: hsl(var(--bull)); }
   .bg-bear { background-color: hsl(var(--bear)); }
-  .glow-bull { box-shadow: var(--shadow-glow-bull); }
-  .glow-bear { box-shadow: var(--shadow-glow-bear); }
+  /* Legacy glow hooks kept as no-op rings so old markup stays consistent */
+  .glow-bull { box-shadow: 0 0 0 1px hsl(var(--bull) / 0.3); }
+  .glow-bear { box-shadow: 0 0 0 1px hsl(var(--bear) / 0.3); }
+  .neon-text { text-shadow: none; }
 
   .ticker-pill {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded px-2 py-1 font-mono text-xs font-medium;
   }
 
   .select-style {
-    @apply rounded-md border border-border bg-surface-elevated px-2.5 py-1.5 font-mono text-xs text-foreground focus:border-primary/50 focus:outline-none;
+    @apply rounded border border-border bg-surface-elevated px-2.5 py-1.5 font-mono text-xs text-foreground transition-colors focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-ring/40;
   }
 
-  .neon-text {
-    text-shadow: 0 0 12px hsl(var(--primary) / 0.6);
+  /* Section label — small caps rule used instead of big headings */
+  .section-label {
+    @apply flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground;
+  }
+  .section-rule {
+    @apply h-px flex-1 bg-border;
   }
 
-  .scanline::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(transparent 50%, hsl(var(--primary) / 0.02) 50%);
-    background-size: 100% 4px;
-    pointer-events: none;
-    border-radius: inherit;
-  }
+  .scanline::after { content: none; }
 }
 
 @layer utilities {
-  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border-strong)); border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border-strong)); border-radius: 4px; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 }
 
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.55; }
 }
-.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 2.4s ease-in-out infinite; }
 
 @keyframes flash-bull {
-  0% { background-color: hsl(var(--bull) / 0.25); }
+  0% { background-color: hsl(var(--bull) / 0.2); }
   100% { background-color: transparent; }
 }
 @keyframes flash-bear {
-  0% { background-color: hsl(var(--bear) / 0.25); }
+  0% { background-color: hsl(var(--bear) / 0.2); }
   100% { background-color: transparent; }
 }
 .flash-bull { animation: flash-bull 0.6s ease-out; }
 .flash-bear { animation: flash-bear 0.6s ease-out; }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
