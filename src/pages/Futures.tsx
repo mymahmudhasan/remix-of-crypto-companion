@@ -261,7 +261,7 @@ export default function Futures() {
           {!plan && !loading && (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
               <Rocket className="size-10 text-muted-foreground/40" />
-              <h2 className="font-mono text-lg font-bold neon-text">Futures Trading Master</h2>
+              <h2 className="font-display text-[15px] font-semibold">Futures Trading Master</h2>
               <p className="max-w-md font-mono text-xs leading-relaxed text-muted-foreground">
                 Long/short bias with leverage discipline, liquidation distance, multi-timeframe confluence, indicator breakdown, and bull/bear scenarios — all derived from live indicators and AI reasoning.
               </p>
@@ -273,7 +273,7 @@ export default function Futures() {
                 <div className="flex flex-wrap items-end justify-between gap-2">
                   <div>
                     <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{symbol.replace("USDT", "-PERP")} · {interval}</span>
-                    <h2 className={cn("flex items-center gap-2 font-mono text-3xl font-black uppercase neon-text", plan.side === "long" ? "text-bull" : plan.side === "short" ? "text-bear" : "text-muted-foreground")}>
+                    <h2 className={cn("flex items-center gap-2 font-display text-xl font-bold uppercase tracking-tight neon-text", plan.side === "long" ? "text-bull" : plan.side === "short" ? "text-bear" : "text-muted-foreground")}>
                       {plan.side === "long" ? <><TrendingUp className="size-7" /> LONG {plan.leverage}×</> : plan.side === "short" ? <><TrendingDown className="size-7" /> SHORT {plan.leverage}×</> : "NEUTRAL"}
                     </h2>
                   </div>
