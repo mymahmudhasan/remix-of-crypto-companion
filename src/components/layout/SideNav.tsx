@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   LayoutDashboard, Radar, ShoppingCart, Rocket, Sparkles, Wand2, Crosshair,
-  Newspaper, Flame, Lock, Bookmark, PanelLeftClose, PanelLeftOpen,
+  Newspaper, Flame, Lock, Bookmark, BellRing, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,7 @@ const GROUPS = [
   {
     label: "Risk",
     items: [
+      { to: "/alerts", label: "Level Alerts", icon: BellRing },
       { to: "/pump-dump", label: "Pump / Dump", icon: Flame },
       { to: "/unlocks", label: "Unlocks", icon: Lock },
     ],
