@@ -94,36 +94,60 @@ NEWS (${body.news.source} · ${ageHours}h old · sentiment: ${body.news.sentimen
 TITLE: ${body.news.title}
 SUMMARY: ${body.news.summary}`;
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "submit_news_plan",
-            description: "Submit the structured news-driven plan",
-            parameters: SCHEMA,
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "submit_news_plan" } },
-      }),
+    const payload = (model: string) => JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: sys },
+        { role: "user", content: user },
+      ],
+      tools: [{
+        type: "function",
+        function: {
+          name: "submit_news_plan",
+          description: "Submit the structured news-driven plan",
+          parameters: SCHEMA,
+        },
+      }],
+      tool_choice: { type: "function", function: { name: "submit_news_plan" } },
     });
 
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return new Response(JSON.stringify({ error: `AI gateway ${resp.status}: ${txt}` }),
-        { status: resp.status === 429 ? 429 : 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // The AI gateway can answer 429/5xx transiently (upstream_error / 503).
+    // Retry with backoff, then fall back to a second model before giving up.
+    const MODELS = ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"];
+    let resp: Response | null = null;
+    let lastStatus = 0;
+    let lastTxt = "";
+
+    outer:
+    for (const model of MODELS) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+        const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: payload(model),
+        }).catch(() => null);
+        if (r?.ok) { resp = r; break outer; }
+        lastStatus = r?.status ?? 0;
+        lastTxt = r ? await r.text() : "network error";
+        // Only retry transient failures; 4xx (other than 429) won't fix itself.
+        if (lastStatus && lastStatus !== 429 && lastStatus < 500) break outer;
+      }
     }
+
+    if (!resp) {
+      const status = lastStatus === 429 ? 429 : 503;
+      const message = lastStatus === 429
+        ? "Rate limit reached — please retry in a moment."
+        : "The AI service is temporarily unavailable. Please try again in a moment.";
+      console.error("news-plan gateway failure", lastStatus, lastTxt.slice(0, 300));
+      return new Response(JSON.stringify({ error: message, status: lastStatus }),
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
 
     const data = await resp.json();
     const call = data.choices?.[0]?.message?.tool_calls?.[0];
