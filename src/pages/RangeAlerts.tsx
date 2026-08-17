@@ -66,7 +66,7 @@ function AlertRow({ a }: { a: RangeAlert }) {
                   : "bg-surface-elevated text-muted-foreground",
               )}
             >
-              {STAGE_LABEL[a.stage]} {a.lookbackDays}D {isHigh ? "HIGH" : "LOW"}
+              {STAGE_LABEL[a.stage]} {a.scope} {isHigh ? "RESISTANCE" : "SUPPORT"}
             </span>
             <span
               className={cn(
@@ -117,7 +117,7 @@ function AlertRow({ a }: { a: RangeAlert }) {
                 icon={isHigh ? <ArrowDownRight className="size-3" /> : <ArrowUpRight className="size-3" />}
               />
             ))}
-            <Metric label={`${a.lookbackDays}D ${isHigh ? "high" : "low"}`} value={`$${formatPrice(a.level)}`} />
+            <Metric label={`${a.scope} ${isHigh ? "res. zone" : "sup. zone"}`} value={`$${formatPrice(a.zoneLow)}–$${formatPrice(a.zoneHigh)}`} />
             <Metric label="ATR" value={a.atrPct !== null ? `${a.atrPct.toFixed(1)}%` : "—"} />
           </div>
           <div className="space-y-1.5">
@@ -220,7 +220,7 @@ const RangeAlerts = () => {
     setNotify(true);
     notifyRef.current = true;
     toast.success("Level alerts ON", {
-      description: "You'll be pinged when a token hits — or is likely to hit — a 30D/90D high or low.",
+      description: "You'll be pinged when a token hits — or is likely to hit — a 30D, 90D, 1Y or all-time support/resistance zone.",
     });
   };
 
