@@ -10,7 +10,7 @@
  *  - at / near LOW   → buy the point and hold it tight (stop just under the low)
  */
 
-import { fetchKlines, type Kline } from "@/lib/binance";
+import { fetchKlines, formatPrice, type Kline } from "@/lib/binance";
 import { atrFromOHLC, rsi } from "@/lib/indicators";
 
 export type RangeKind = "high" | "low";
@@ -111,11 +111,11 @@ function build(symbol: string, klines: Kline[], lookback: number): RangeAlert[] 
       bias: "short",
       action: stHigh === "at"
         ? `At the ${lookback}D high — fade the extreme (short) or take profit on longs`
-        : `${dHighPct.toFixed(1)}% under the ${lookback}D high — set a short ambush at $${hi}`,
+        : `${dHighPct.toFixed(1)}% under the ${lookback}D high — set a short ambush at $${formatPrice(hi)}`,
       entry, stop, targets: [t1, t2],
       rr: risk > 0 ? (entry - t2) / risk : 0,
       reasons: [
-        `${lookback}D high $${hi} · price ${dHighPct.toFixed(1)}% away`,
+        `${lookback}D high $${formatPrice(hi)} · price ${dHighPct.toFixed(1)}% away`,
         `Range position ${(rangePos * 100).toFixed(0)}% (top of range)`,
         rsiNow !== null ? `RSI ${rsiNow.toFixed(0)}${rsiNow > 70 ? " overbought" : ""}` : "",
         `${chance}% chance of tagging the level (${(Math.max(0, hi - price) / atr).toFixed(1)} ATR away)`,
@@ -139,12 +139,12 @@ function build(symbol: string, klines: Kline[], lookback: number): RangeAlert[] 
       rsi: rsiNow, atrPct, rangePos,
       bias: "long",
       action: stLow === "at"
-        ? `At the ${lookback}D low — buy this point and hold it tight (stop under $${lo})`
-        : `${dLowPct.toFixed(1)}% above the ${lookback}D low — stage bids into $${lo}`,
+        ? `At the ${lookback}D low — buy this point and hold it tight (stop under $${formatPrice(lo)})`
+        : `${dLowPct.toFixed(1)}% above the ${lookback}D low — stage bids into $${formatPrice(lo)}`,
       entry, stop, targets: [t1, t2],
       rr: risk > 0 ? (t2 - entry) / risk : 0,
       reasons: [
-        `${lookback}D low $${lo} · price ${dLowPct.toFixed(1)}% away`,
+        `${lookback}D low $${formatPrice(lo)} · price ${dLowPct.toFixed(1)}% away`,
         `Range position ${(rangePos * 100).toFixed(0)}% (bottom of range)`,
         rsiNow !== null ? `RSI ${rsiNow.toFixed(0)}${rsiNow < 30 ? " oversold" : ""}` : "",
         `${chance}% chance of tagging the level (${(Math.max(0, price - lo) / atr).toFixed(1)} ATR away)`,
